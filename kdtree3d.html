@@ -97,7 +97,7 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // --- ESTRUTURA DE DADOS ---
+        // ESTRUTURA DE DADOS
         class Node {
             constructor(point, axis) {
                 this.point = point; // [x, y, z]
@@ -107,11 +107,11 @@
             }
         }
 
-        // --- VARIÁVEIS GLOBAIS ---
+        // VARIÁVEIS GLOBAIS 
         let root = null;
         const BOX_SIZE = 200; // Tamanho do mundo (-100 a 100)
 
-        // --- THREE.JS SETUP ---
+        // THREE.JS SETUP 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x202020);
         // Nevoeiro para profundidade
@@ -147,7 +147,7 @@
         const treeGroup = new THREE.Group();
         scene.add(treeGroup);
 
-        // --- FUNÇÕES LÓGICAS ---
+        //FUNÇÕES LÓGICAS 
 
         function insertNode(node, point, depth) {
             if (!node) return new Node(point, depth % 3);
@@ -172,7 +172,7 @@
             return findNode(node.right, point);
         }
 
-        // --- VISUALIZAÇÃO 3D ---
+        // VISUALIZAÇÃO 3D 
 
         function build3DTree() {
             // Limpa visualização antiga
@@ -266,7 +266,7 @@
             }
         }
 
-        // --- VISUALIZAÇÃO 2D (HIERARQUIA) ---
+        // VISUALIZAÇÃO 2D (HIERARQUIA) 
         const treeCv = document.getElementById('treeCanvas');
         const treeCtx = treeCv.getContext('2d');
 
@@ -301,7 +301,7 @@
             treeCtx.beginPath(); treeCtx.arc(x, y, 6, 0, Math.PI*2); treeCtx.fill();
         }
 
-        // --- INTERFACE PÚBLICA ---
+        // INTERFACE PÚBLICA 
         
         const logEl = document.getElementById('log');
         function log(msg) {
@@ -363,7 +363,7 @@
             }
         };
 
-        // --- LOOP DE RENDERIZAÇÃO ---
+        // LOOP DE RENDERIZAÇÃO 
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
