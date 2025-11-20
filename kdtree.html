@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador K-D Tree: Dual View</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 10px; color: #333; }
+        
+        /* Layout Principal */
+        .main-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Estilos dos Painéis */
+        .panel {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        canvas {
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: crosshair;
+        }
+
+        h3 { margin: 0 0 10px 0; color: #555; font-size: 1rem; }
+
+        /* Controles */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input { padding: 8px; width: 60px; text-align: center; }
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+        }
+        .btn-add { background: #28a745; }
+        .btn-search { background: #007bff; }
+        .btn-del { background: #dc3545; }
+        .btn-clear { background: #6c757d; }
+        button:hover { opacity: 0.9; }
+
+        /* Log */
+        #log {
+            width: 100%;
+            max-width: 800px;
+            height: 60px;
+            overflow-y: auto;
+            margin-top: 10px;
+            background: #e9ecef;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.9em;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Simulador K-D Tree (2D + Estrutura)</h1>
+
+    <div class="main-container">
+        <div class="panel">
+            <h3>Visão Espacial (O Espaço)</h3>
+            <canvas id="spatialCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <div class="panel">
+            <h3>Visão Hierárquica (A Memória)</h3>
+            <canvas id="treeCanvas" width="400" height="400"></canvas>
+        </div>
+    </div>
+
+    <div class="controls">
+        <input type="number" id="inX" placeholder="X" min="0" max="400">
+        <input type="number" id="inY" placeholder="Y" min="0" max="400">
+        <button class="btn-add" onclick="actionInsert()">Inserir</button>
+        <button class="btn-search" onclick="actionSearch()">Buscar</button>
+        <button class="btn-del" onclick="actionDelete()">Remover</button>
+        <button class="btn-clear" onclick="resetAll()">Limpar</button>
+    </div>
+
+    <div id="log">Log de eventos...</div>
+
+    <script>
+        // --- CONFIGURAÇÃO ---
+        const spatialCv = document.getElementById('spatialCanvas');
+        const spatialCtx = spatialCv.getContext('2d');
+        const treeCv = document.getElementById('treeCanvas');
+        const treeCtx = treeCv.getContext('2d');
+        const logDiv = document.getElementById('log');
+        
+        let root = null;
+
+        // --- CLASSE NÓ ---
+        class Node {
+            constructor(point, axis) {
+                this.point = point; // [x, y]
+                this.left = null;
+                this.right = null;
+                this.axis = axis; // 0=Vertical(X), 1=Horizontal(Y)
+            }
+        }
+
+        // --- LÓGICA CORE (Igual à anterior) ---
+        function insert(node, point, depth) {
+            if (!node) return new Node(point, depth % 2);
+            
+            // Evitar duplicatas exatas
+            if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
+
+            const axis = node.axis;
+            if (point[axis] < node.point[axis]) {
+                node.left = insert(node.left, point, depth + 1);
+            } else {
+                node.right = insert(node.right, point, depth + 1);
+            }
+            return node;
+        }
+
+        function find(node, point) {
+            if (!node) return null;
+            if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
+            
+            const axis = node.axis;
+            if (point[axis] < node.point[axis]) return find(node.left, point);
+            else return find(node.right, point);
+        }
+
+        function getAllPoints(node, list = []) {
+            if (!node) return list;
+            list.push(node.point);
+            getAllPoints(node.left, list);
+            getAllPoints(node.right, list);
+            return list;
+        }
+
+        // --- VISUALIZAÇÃO 1: ESPACIAL (Cortes) ---
+        function drawSpatial() {
+            spatialCtx.clearRect(0, 0, spatialCv.width, spatialCv.height);
+            if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height);
+        }
+
+        function drawSpatialNode(node, minX, maxX, minY, maxY) {
+            if (!node) return;
+
+            spatialCtx.lineWidth = 1;
+            
+            if (node.axis === 0) { // Corte Vertical (Vermelho)
+                spatialCtx.strokeStyle = "#ff4d4d";
+                spatialCtx.beginPath();
+                spatialCtx.moveTo(node.point[0], minY);
+                spatialCtx.lineTo(node.point[0], maxY);
+                spatialCtx.stroke();
+                
+                drawSpatialNode(node.left, minX, node.point[0], minY, maxY);
+                drawSpatialNode(node.right, node.point[0], maxX, minY, maxY);
+            } else { // Corte Horizontal (Azul)
+                spatialCtx.strokeStyle = "#007bff";
+                spatialCtx.beginPath();
+                spatialCtx.moveTo(minX, node.point[1]);
+                spatialCtx.lineTo(maxX, node.point[1]);
+                spatialCtx.stroke();
+
+                drawSpatialNode(node.left, minX, maxX, minY, node.point[1]);
+                drawSpatialNode(node.right, minX, maxX, node.point[1], maxY);
+            }
+
+            // Ponto
+            spatialCtx.fillStyle = "black";
+            spatialCtx.beginPath();
+            spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2);
+            spatialCtx.fill();
+            
+            // Texto pequeno coordenadas
+            spatialCtx.fillStyle = "#555";
+            spatialCtx.font = "10px Arial";
+            spatialCtx.fillText(`(${node.point[0]},${node.point[1]})`, node.point[0]+5, node.point[1]-5);
+        }
+
+        // --- VISUALIZAÇÃO 2: HIERÁRQUICA (Árvore Clássica) ---
+        function drawHierarchy() {
+            treeCtx.clearRect(0, 0, treeCv.width, treeCv.height);
+            if (!root) return;
+            // Começa desenhando a raiz no meio superior
+            drawHierarchyNode(root, treeCv.width / 2, 40, treeCv.width / 4);
+        }
+
+        function drawHierarchyNode(node, x, y, offset) {
+            if (!node) return;
+
+            // Desenha linhas para os filhos PRIMEIRO (para ficarem atrás das bolinhas)
+            treeCtx.strokeStyle = "#aaa";
+            treeCtx.lineWidth = 2;
+
+            if (node.left) {
+                treeCtx.beginPath();
+                treeCtx.moveTo(x, y);
+                treeCtx.lineTo(x - offset, y + 60); // 60px para baixo
+                treeCtx.stroke();
+                drawHierarchyNode(node.left, x - offset, y + 60, offset / 2);
+            }
+            if (node.right) {
+                treeCtx.beginPath();
+                treeCtx.moveTo(x, y);
+                treeCtx.lineTo(x + offset, y + 60);
+                treeCtx.stroke();
+                drawHierarchyNode(node.right, x + offset, y + 60, offset / 2);
+            }
+
+            // Desenha o Nó (Círculo)
+            // Cor muda baseada no eixo de corte (Vermelho X, Azul Y)
+            treeCtx.fillStyle = node.axis === 0 ? "#ffe6e6" : "#e6f0ff"; // Fundo claro
+            treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3"; // Borda forte
+            
+            treeCtx.beginPath();
+            treeCtx.arc(x, y, 18, 0, Math.PI * 2);
+            treeCtx.fill();
+            treeCtx.stroke();
+
+            // Texto dentro da bolinha
+            treeCtx.fillStyle = "#000";
+            treeCtx.font = "bold 10px Arial";
+            treeCtx.textAlign = "center";
+            treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y + 4);
+        }
+
+        // --- INTERAÇÕES ---
+        function updateAll() {
+            drawSpatial();
+            drawHierarchy();
+        }
+
+        function log(msg) {
+            logDiv.innerText = "> " + msg + "\n" + logDiv.innerText;
+        }
+
+        function actionInsert() {
+            const x = parseInt(document.getElementById('inX').value) || Math.floor(Math.random()*380)+10;
+            const y = parseInt(document.getElementById('inY').value) || Math.floor(Math.random()*380)+10;
+            
+            root = insert(root, [x, y], 0);
+            updateAll();
+            log(`Inserido: (${x}, ${y})`);
+            
+            // Limpa inputs para próximo uso
+            document.getElementById('inX').value = '';
+            document.getElementById('inY').value = '';
+        }
+
+        function actionSearch() {
+            const x = parseInt(document.getElementById('inX').value);
+            const y = parseInt(document.getElementById('inY').value);
+            if (isNaN(x) || isNaN(y)) return alert("Digite X e Y para buscar");
+
+            const result = find(root, [x, y]);
+            if (result) {
+                log(`ENCONTRADO: (${x}, ${y}) - Eixo de corte: ${result.axis === 0 ? 'Vertical' : 'Horizontal'}`);
+                // Destaque Visual (Opcional: desenhar um círculo verde)
+                spatialCtx.strokeStyle = "#00cc00";
+                spatialCtx.lineWidth = 3;
+                spatialCtx.beginPath();
+                spatialCtx.arc(x, y, 10, 0, Math.PI*2);
+                spatialCtx.stroke();
+            } else {
+                log(`NÃO ENCONTRADO: (${x}, ${y})`);
+            }
+        }
+
+        function actionDelete() {
+            const x = parseInt(document.getElementById('inX').value);
+            const y = parseInt(document.getElementById('inY').value);
+            if (isNaN(x) || isNaN(y)) return alert("Digite X e Y para remover");
+
+            let points = getAllPoints(root);
+            const initialLen = points.length;
+            // Remove o ponto da lista
+            points = points.filter(p => p[0] !== x || p[1] !== y);
+
+            if (points.length === initialLen) {
+                log(`Erro: Ponto (${x}, ${y}) não existe.`);
+                return;
+            }
+
+            // Reconstrói árvore
+            root = null;
+            points.forEach(p => root = insert(root, p, 0));
+            updateAll();
+            log(`Removido: (${x}, ${y})`);
+        }
+
+        function resetAll() {
+            root = null;
+            updateAll();
+            log("Árvore limpa.");
+        }
+
+        // Clique no canvas Espacial para inserir rápido
+        spatialCv.addEventListener('mousedown', e => {
+            const r = spatialCv.getBoundingClientRect();
+            const x = Math.round(e.clientX - r.left);
+            const y = Math.round(e.clientY - r.top);
+            document.getElementById('inX').value = x;
+            document.getElementById('inY').value = y;
+            actionInsert();
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador K-D Tree 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; }
+        
+        /* Layout Principal: Overlay sobre o Canvas 3D */
+        #ui-layer {
+            position: absolute; top: 10px; left: 10px; width: 320px;
+            background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 10px;
+            backdrop-filter: blur(5px); border: 1px solid #444;
+            display: flex; flex-direction: column; gap: 10px;
+            max-height: 95vh; overflow-y: auto;
+        }
+
+        h2 { margin: 0 0 10px 0; font-size: 1.2rem; color: #eee; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px;}
+
+        /* Inputs */
+        .input-group { display: flex; gap: 5px; justify-content: space-between; }
+        .input-group input {
+            width: 30%; padding: 8px; background: #333; border: 1px solid #555; color: white; 
+            border-radius: 4px; text-align: center;
+        }
+        
+        /* Botões */
+        .btn-group { display: flex; flex-direction: column; gap: 5px; margin-top: 5px; }
+        button {
+            padding: 10px; border: none; border-radius: 4px; cursor: pointer;
+            font-weight: bold; transition: 0.2s; text-transform: uppercase; font-size: 0.8rem;
+        }
+        .btn-add { background: #27ae60; color: white; } .btn-add:hover { background: #2ecc71; }
+        .btn-search { background: #2980b9; color: white; } .btn-search:hover { background: #3498db; }
+        .btn-clear { background: #c0392b; color: white; } .btn-clear:hover { background: #e74c3c; }
+        
+        /* Legenda */
+        .legend { font-size: 0.8rem; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        /* Canvas da Hierarquia (2D) */
+        #hierarchy-container {
+            margin-top: 15px; background: rgba(255,255,255,0.9);
+            border-radius: 5px; padding: 5px; height: 200px;
+        }
+        canvas { display: block; }
+        
+        #log { font-family: monospace; font-size: 0.8rem; color: #aaa; margin-top: 10px; max-height: 100px; overflow-y: auto; }
+        .log-entry { border-bottom: 1px solid #333; padding: 2px 0; }
+
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="canvas3d"></div>
+
+    <div id="ui-layer">
+        <h2>K-D Tree 3D (XYZ)</h2>
+        
+        <div class="input-group">
+            <input type="number" id="inX" placeholder="X" min="-100" max="100">
+            <input type="number" id="inY" placeholder="Y" min="-100" max="100">
+            <input type="number" id="inZ" placeholder="Z" min="-100" max="100">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-add" onclick="window.app.insert()">Inserir Aleatório</button>
+            <button class="btn-search" onclick="window.app.search()">Buscar Ponto</button>
+            <button class="btn-clear" onclick="window.app.clear()">Limpar Tudo</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background:#ff4d4d"></span> Corte X (Vermelho)</div>
+            <div class="legend-item"><span class="dot" style="background:#4d96ff"></span> Corte Y (Azul)</div>
+            <div class="legend-item"><span class="dot" style="background:#2ecc71"></span> Corte Z (Verde)</div>
+            <div style="margin-top:5px; font-size:0.7em; color:#888;">Use o mouse para girar e zoom.</div>
+        </div>
+
+        <div id="hierarchy-container">
+            <canvas id="treeCanvas" width="280" height="190"></canvas>
+        </div>
+
+        <div id="log">Log iniciado...</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- ESTRUTURA DE DADOS ---
+        class Node {
+            constructor(point, axis) {
+                this.point = point; // [x, y, z]
+                this.left = null;
+                this.right = null;
+                this.axis = axis; // 0=X, 1=Y, 2=Z
+            }
+        }
+
+        // --- VARIÁVEIS GLOBAIS ---
+        let root = null;
+        const BOX_SIZE = 200; // Tamanho do mundo (-100 a 100)
+
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x202020);
+        // Nevoeiro para profundidade
+        scene.fog = new THREE.Fog(0x202020, 200, 900);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+        camera.position.set(250, 150, 250);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true; // Começa girando devagar
+        controls.autoRotateSpeed = 0.5;
+
+        // Luzes
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(100, 200, 100);
+        scene.add(dirLight);
+
+        // Bounding Box Wireframe (Limites do Mundo)
+        const boxGeo = new THREE.BoxGeometry(BOX_SIZE, BOX_SIZE, BOX_SIZE);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x444444, wireframe: true });
+        const worldBox = new THREE.Mesh(boxGeo, boxMat);
+        scene.add(worldBox);
+
+        // Grupo que segura os objetos da árvore para limpar fácil
+        const treeGroup = new THREE.Group();
+        scene.add(treeGroup);
+
+        // --- FUNÇÕES LÓGICAS ---
+
+        function insertNode(node, point, depth) {
+            if (!node) return new Node(point, depth % 3);
+            
+            // Ignora duplicatas exatas visualmente
+            if (node.point[0] === point[0] && node.point[1] === point[1] && node.point[2] === point[2]) return node;
+
+            const axis = node.axis;
+            if (point[axis] < node.point[axis]) {
+                node.left = insertNode(node.left, point, depth + 1);
+            } else {
+                node.right = insertNode(node.right, point, depth + 1);
+            }
+            return node;
+        }
+
+        function findNode(node, point) {
+            if (!node) return null;
+            if (node.point[0] === point[0] && node.point[1] === point[1] && node.point[2] === point[2]) return node;
+            const axis = node.axis;
+            if (point[axis] < node.point[axis]) return findNode(node.left, point);
+            return findNode(node.right, point);
+        }
+
+        // --- VISUALIZAÇÃO 3D ---
+
+        function build3DTree() {
+            // Limpa visualização antiga
+            while(treeGroup.children.length > 0){ 
+                const obj = treeGroup.children[0];
+                // Libera memória se possível
+                if(obj.geometry) obj.geometry.dispose();
+                if(obj.material) obj.material.dispose();
+                treeGroup.remove(obj); 
+            }
+
+            if(root) {
+                // Começa com os limites totais do mundo
+                const min = -BOX_SIZE/2;
+                const max = BOX_SIZE/2;
+                recursiveDraw3D(root, min, max, min, max, min, max);
+            }
+        }
+
+        function recursiveDraw3D(node, minX, maxX, minY, maxY, minZ, maxZ) {
+            if(!node) return;
+
+            // 1. Desenhar o Ponto (Esfera)
+            const sphereGeo = new THREE.SphereGeometry(3, 16, 16);
+            const sphereMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+            const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+            sphere.position.set(node.point[0], node.point[1], node.point[2]);
+            treeGroup.add(sphere);
+
+            // 2. Desenhar o Plano de Corte
+            // A cor e a orientação dependem do eixo
+            let planeColor, planeWidth, planeHeight, pX, pY, pZ, rotX=0, rotY=0, rotZ=0;
+            
+            // Espessura do plano (transparente)
+            const material = new THREE.MeshPhongMaterial({ 
+                side: THREE.DoubleSide, 
+                transparent: true, 
+                opacity: 0.3,
+                depthWrite: false // Ajuda na transparência
+            });
+
+            if (node.axis === 0) { 
+                // Eixo X (Vermelho) -> Plano perpendicular a X (plano YZ)
+                material.color.setHex(0xff4d4d);
+                planeWidth = maxZ - minZ; // Largura no Z
+                planeHeight = maxY - minY; // Altura no Y
+                
+                const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+                const plane = new THREE.Mesh(geometry, material);
+                
+                // Posiciona no X do ponto, e no centro dos limites Y e Z atuais
+                plane.position.set(node.point[0], (minY + maxY)/2, (minZ + maxZ)/2);
+                plane.rotation.y = Math.PI / 2; // Gira 90 graus para ficar de pé
+                treeGroup.add(plane);
+
+                // Recursão
+                recursiveDraw3D(node.left, minX, node.point[0], minY, maxY, minZ, maxZ);
+                recursiveDraw3D(node.right, node.point[0], maxX, minY, maxY, minZ, maxZ);
+
+            } else if (node.axis === 1) {
+                // Eixo Y (Azul) -> Plano perpendicular a Y (plano XZ)
+                material.color.setHex(0x4d96ff);
+                planeWidth = maxX - minX;
+                planeHeight = maxZ - minZ;
+
+                const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+                const plane = new THREE.Mesh(geometry, material);
+
+                plane.position.set((minX + maxX)/2, node.point[1], (minZ + maxZ)/2);
+                plane.rotation.x = Math.PI / 2; // Deita o plano
+                treeGroup.add(plane);
+
+                recursiveDraw3D(node.left, minX, maxX, minY, node.point[1], minZ, maxZ);
+                recursiveDraw3D(node.right, minX, maxX, node.point[1], maxY, minZ, maxZ);
+
+            } else {
+                // Eixo Z (Verde) -> Plano perpendicular a Z (plano XY)
+                material.color.setHex(0x2ecc71);
+                planeWidth = maxX - minX;
+                planeHeight = maxY - minY;
+
+                const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+                const plane = new THREE.Mesh(geometry, material);
+
+                plane.position.set((minX + maxX)/2, (minY + maxY)/2, node.point[2]);
+                // Sem rotação necessária, PlaneGeometry já é XY por padrão
+                treeGroup.add(plane);
+
+                recursiveDraw3D(node.left, minX, maxX, minY, maxY, minZ, node.point[2]);
+                recursiveDraw3D(node.right, minX, maxX, minY, maxY, node.point[2], maxZ);
+            }
+        }
+
+        // --- VISUALIZAÇÃO 2D (HIERARQUIA) ---
+        const treeCv = document.getElementById('treeCanvas');
+        const treeCtx = treeCv.getContext('2d');
+
+        function drawHierarchy() {
+            treeCtx.clearRect(0, 0, treeCv.width, treeCv.height);
+            if (!root) return;
+            // Escala visual simples para caber no mini canvas
+            drawHNode(root, treeCv.width / 2, 20, treeCv.width / 4);
+        }
+
+        function drawHNode(node, x, y, offset) {
+            if(!node) return;
+
+            // Linhas
+            treeCtx.strokeStyle = "#aaa"; treeCtx.lineWidth = 1;
+            if(node.left) {
+                treeCtx.beginPath(); treeCtx.moveTo(x,y); treeCtx.lineTo(x-offset, y+30); treeCtx.stroke();
+                drawHNode(node.left, x-offset, y+30, offset/2);
+            }
+            if(node.right) {
+                treeCtx.beginPath(); treeCtx.moveTo(x,y); treeCtx.lineTo(x+offset, y+30); treeCtx.stroke();
+                drawHNode(node.right, x+offset, y+30, offset/2);
+            }
+
+            // Bolinhas coloridas pelo eixo
+            let color = "#aaa";
+            if(node.axis === 0) color = "#ff4d4d"; // X
+            if(node.axis === 1) color = "#4d96ff"; // Y
+            if(node.axis === 2) color = "#2ecc71"; // Z
+
+            treeCtx.fillStyle = color;
+            treeCtx.beginPath(); treeCtx.arc(x, y, 6, 0, Math.PI*2); treeCtx.fill();
+        }
+
+        // --- INTERFACE PÚBLICA ---
+        
+        const logEl = document.getElementById('log');
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.textContent = "> " + msg;
+            logEl.prepend(div);
+        }
+
+        window.app = {
+            insert: () => {
+                controls.autoRotate = false; // Para rotação ao interagir
+                const ix = document.getElementById('inX');
+                const iy = document.getElementById('inY');
+                const iz = document.getElementById('inZ');
+
+                // Aleatório entre -90 e 90 se vazio
+                const val = (inp) => inp.value ? parseInt(inp.value) : Math.floor(Math.random() * 180) - 90;
+                
+                const x = val(ix); const y = val(iy); const z = val(iz);
+
+                root = insertNode(root, [x, y, z], 0);
+                build3DTree();
+                drawHierarchy();
+                log(`Inserido: [${x}, ${y}, ${z}]`);
+
+                // Limpa inputs
+                ix.value = ''; iy.value = ''; iz.value = '';
+            },
+            
+            search: () => {
+                controls.autoRotate = false;
+                const x = parseInt(document.getElementById('inX').value);
+                const y = parseInt(document.getElementById('inY').value);
+                const z = parseInt(document.getElementById('inZ').value);
+                
+                if (isNaN(x) || isNaN(y) || isNaN(z)) { alert("Preencha X, Y e Z"); return; }
+
+                const found = findNode(root, [x, y, z]);
+                if(found) {
+                    log(`ENCONTRADO: [${x}, ${y}, ${z}]`);
+                    // Highlight Effect (Cria um wireframe amarelo em volta)
+                    const hlGeo = new THREE.SphereGeometry(5, 16, 16);
+                    const hlMat = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
+                    const hl = new THREE.Mesh(hlGeo, hlMat);
+                    hl.position.set(x, y, z);
+                    treeGroup.add(hl);
+                } else {
+                    log(`NÃO ENCONTRADO.`);
+                }
+            },
+
+            clear: () => {
+                root = null;
+                build3DTree();
+                drawHierarchy();
+                log("Árvore limpa.");
+                controls.autoRotate = true; // Volta a girar se limpar
+            }
+        };
+
+        // --- LOOP DE RENDERIZAÇÃO ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Ajuste de janela
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
