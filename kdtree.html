@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador 2D - Buscas Avançadas</title>
+    <title>Simulador 2D - Auto Inserção</title>
     <style>
         /* --- ESTILOS GERAIS --- */
         body {
@@ -61,12 +61,13 @@
         button:active { transform: scale(0.96); }
 
         /* Cores dos Botões */
+        .btn-auto   { background: #16a085; min-width: 120px; } /* Verde Água (Destaque) */
         .btn-insert { background: #27ae60; } 
-        .btn-exact  { background: #2980b9; } /* Azul */
-        .btn-range  { background: #8e44ad; } /* Roxo */
-        .btn-nn     { background: #e67e22; } /* Laranja */
-        .btn-del    { background: #c0392b; } /* Vermelho */
-        .btn-clear  { background: #7f8c8d; } /* Cinza */
+        .btn-exact  { background: #2980b9; } 
+        .btn-range  { background: #8e44ad; } 
+        .btn-nn     { background: #e67e22; } 
+        .btn-del    { background: #c0392b; } 
+        .btn-clear  { background: #7f8c8d; } 
 
         /* --- CAIXINHA DE LOG PROFISSIONAL --- */
         #log-container {
@@ -79,6 +80,7 @@
         .log-header {
             background: #333; color: #ddd; padding: 5px 10px;
             font-size: 0.8em; border-bottom: 1px solid #444;
+            display: flex; justify-content: space-between;
         }
         #log-content {
             height: 120px; overflow-y: auto; padding: 10px;
@@ -89,11 +91,10 @@
         .log-time { color: #666; margin-right: 8px; font-size: 0.9em; }
         
         .log-info { color: #aaa; }
-        .log-success { color: #2ecc71; } /* Verde Matrix */
-        .log-error { color: #e74c3c; }   /* Vermelho Erro */
-        .log-highlight { color: #f1c40f; font-weight: bold; } /* Amarelo */
+        .log-success { color: #2ecc71; } 
+        .log-error { color: #e74c3c; }   
+        .log-highlight { color: #f1c40f; font-weight: bold; } 
 
-        /* Scrollbar customizada para o log */
         #log-content::-webkit-scrollbar { width: 8px; }
         #log-content::-webkit-scrollbar-track { background: #1e1e1e; }
         #log-content::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
@@ -104,7 +105,7 @@
     <a href="index.html" class="back-btn">⬅ Voltar</a>
 
     <h1>Simulador K-D Tree (2D)</h1>
-    <p class="subtitle">Visualize Inserção, Busca Exata, Busca por Intervalo e Vizinho Mais Próximo (NN)</p>
+    <p class="subtitle">Inserção Automática, Busca Exata, Busca por Intervalo e Vizinho Mais Próximo</p>
 
     <div class="main-container">
         <div class="panel">
@@ -132,7 +133,9 @@
         </div>
 
         <div class="btn-group">
-            <button class="btn-insert" onclick="actionInsert()">+ Inserir</button>
+            <button id="btn-auto" class="btn-auto" onclick="toggleAutoInsert()">▶ Auto Inserir</button>
+            
+            <button class="btn-insert" onclick="actionInsert()">+ Inserir 1</button>
             <button class="btn-exact" onclick="actionExactSearch()">🔍 Busca Exata</button>
             <button class="btn-range" onclick="actionRangeSearch()">📦 Busca Intervalo</button>
             <button class="btn-nn" onclick="actionNearestNeighbor()">🎯 Vizinho + Próximo</button>
@@ -142,9 +145,12 @@
     </div>
 
     <div id="log-container">
-        <div class="log-header">TERMINAL DE EXECUÇÃO</div>
+        <div class="log-header">
+            <span>TERMINAL DE EXECUÇÃO</span>
+            <span id="status-indicator" style="color:#aaa; font-size:0.9em;">Ocioso</span>
+        </div>
         <ul id="log-content">
-            <li class="log-line"><span class="log-time">00:00:00</span> <span class="log-info">Sistema iniciado. Pronto para operações.</span></li>
+            <li class="log-line"><span class="log-time">00:00:00</span> <span class="log-info">Sistema iniciado.</span></li>
         </ul>
     </div>
 
@@ -157,6 +163,7 @@
         const logList = document.getElementById('log-content');
         
         let root = null;
+        let autoInterval = null; // Para controlar a animação
 
         // --- CLASSE NODE ---
         class Node {
@@ -169,11 +176,9 @@
         }
 
         // --- ALGORITMOS KD-TREE ---
-
-        // 1. Inserção
         function insert(node, point, depth) {
             if (!node) return new Node(point, depth % 2);
-            if (node.point[0] === point[0] && node.point[1] === point[1]) return node; // Duplicatas ignoradas
+            if (node.point[0] === point[0] && node.point[1] === point[1]) return node; 
 
             const axis = node.axis;
             if (point[axis] < node.point[axis]) {
@@ -184,88 +189,45 @@
             return node;
         }
 
-        // 2. Busca Exata
         function findExact(node, point) {
             if (!node) return null;
             if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
-            
             const axis = node.axis;
             if (point[axis] < node.point[axis]) return findExact(node.left, point);
             return findExact(node.right, point);
         }
 
-        // 3. Busca por Intervalo (Range Search)
-        // range = { minX, maxX, minY, maxY }
         function rangeSearch(node, range, results = []) {
             if (!node) return results;
+            const x = node.point[0]; const y = node.point[1];
 
-            const x = node.point[0];
-            const y = node.point[1];
-
-            // Verifica se o nó atual está dentro do retângulo
-            if (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY) {
-                results.push(node);
-            }
-
-            // Lógica de Poda (Pruning)
+            if (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY) results.push(node);
             const axis = node.axis;
-            
-            // Se o corte é vertical (X)
             if (axis === 0) {
-                // Se o limite mínimo do range for menor que o ponto, precisamos verificar a esquerda
                 if (range.minX <= x) rangeSearch(node.left, range, results);
-                // Se o limite máximo do range for maior que o ponto, precisamos verificar a direita
                 if (range.maxX >= x) rangeSearch(node.right, range, results);
-            } 
-            // Se o corte é horizontal (Y)
-            else {
+            } else {
                 if (range.minY <= y) rangeSearch(node.left, range, results);
                 if (range.maxY >= y) rangeSearch(node.right, range, results);
             }
-
             return results;
         }
 
-        // 4. Vizinho Mais Próximo (Nearest Neighbor)
-        // Retorna { node: Node, dist: Number }
         function nearestNeighbor(node, target, best = { node: null, dist: Infinity }) {
             if (!node) return best;
-
-            // Distância do nó atual ao alvo
             const d = distSq(node.point, target);
-            if (d < best.dist) {
-                best.node = node;
-                best.dist = d;
-            }
+            if (d < best.dist) { best.node = node; best.dist = d; }
 
             const axis = node.axis;
             const diff = target[axis] - node.point[axis];
+            let goodSide = node.left; let badSide = node.right;
+            if (diff > 0) { goodSide = node.right; badSide = node.left; }
 
-            // Decide qual lado descer primeiro (o lado onde o ponto alvo está)
-            let goodSide = node.left;
-            let badSide = node.right;
-            if (diff > 0) { // Target está à direita/cima
-                goodSide = node.right;
-                badSide = node.left;
-            }
-
-            // 1. Busca no lado bom
             best = nearestNeighbor(goodSide, target, best);
-
-            // 2. Verifica se precisa buscar no "lado ruim" (Poda Geométrica)
-            // Se a distância até o plano de corte for menor que a melhor distância encontrada,
-            // pode haver um ponto mais próximo do outro lado.
-            if (diff * diff < best.dist) {
-                best = nearestNeighbor(badSide, target, best);
-            }
-
+            if (diff * diff < best.dist) best = nearestNeighbor(badSide, target, best);
             return best;
         }
-
-        // Auxiliar distância ao quadrado (evita raiz quadrada repetitiva)
-        function distSq(p1, p2) {
-            return (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2;
-        }
+        function distSq(p1, p2) { return (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2; }
 
         function getAllPoints(node, list = []) {
             if (!node) return list;
@@ -276,56 +238,24 @@
         }
 
         // --- VISUALIZAÇÃO ---
-
         function drawSpatial(highlightNodes = [], searchRect = null, nnData = null) {
             spatialCtx.clearRect(0, 0, spatialCv.width, spatialCv.height);
-            
-            // Desenha a árvore base
             if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height, 0);
 
-            // Destaque para Busca por Intervalo (Retângulo)
             if (searchRect) {
-                spatialCtx.fillStyle = "rgba(142, 68, 173, 0.2)";
-                spatialCtx.strokeStyle = "#8e44ad";
-                spatialCtx.lineWidth = 2;
-                const w = searchRect.maxX - searchRect.minX;
-                const h = searchRect.maxY - searchRect.minY;
-                spatialCtx.fillRect(searchRect.minX, searchRect.minY, w, h);
-                spatialCtx.strokeRect(searchRect.minX, searchRect.minY, w, h);
+                spatialCtx.fillStyle = "rgba(142, 68, 173, 0.2)"; spatialCtx.strokeStyle = "#8e44ad"; spatialCtx.lineWidth = 2;
+                const w = searchRect.maxX - searchRect.minX; const h = searchRect.maxY - searchRect.minY;
+                spatialCtx.fillRect(searchRect.minX, searchRect.minY, w, h); spatialCtx.strokeRect(searchRect.minX, searchRect.minY, w, h);
             }
-
-            // Destaque para pontos encontrados (Range ou Exact)
             highlightNodes.forEach(node => {
-                spatialCtx.fillStyle = "#f1c40f"; // Amarelo destaque
-                spatialCtx.beginPath();
-                spatialCtx.arc(node.point[0], node.point[1], 8, 0, Math.PI*2);
-                spatialCtx.fill();
-                spatialCtx.strokeStyle = "black";
-                spatialCtx.stroke();
+                spatialCtx.fillStyle = "#f1c40f"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 8, 0, Math.PI*2); spatialCtx.fill(); spatialCtx.strokeStyle = "black"; spatialCtx.stroke();
             });
-
-            // Destaque para Vizinho Mais Próximo
             if (nnData) {
-                // Ponto alvo (onde o usuário clicou/digitou)
-                spatialCtx.strokeStyle = "#e67e22";
-                spatialCtx.setLineDash([5, 5]);
-                spatialCtx.beginPath();
-                spatialCtx.arc(nnData.target[0], nnData.target[1], Math.sqrt(nnData.dist), 0, Math.PI*2);
-                spatialCtx.stroke();
-                spatialCtx.setLineDash([]);
-
-                // Linha ligando alvo ao vizinho
+                spatialCtx.strokeStyle = "#e67e22"; spatialCtx.setLineDash([5, 5]);
+                spatialCtx.beginPath(); spatialCtx.arc(nnData.target[0], nnData.target[1], Math.sqrt(nnData.dist), 0, Math.PI*2); spatialCtx.stroke(); spatialCtx.setLineDash([]);
                 if (nnData.node) {
-                    spatialCtx.beginPath();
-                    spatialCtx.moveTo(nnData.target[0], nnData.target[1]);
-                    spatialCtx.lineTo(nnData.node.point[0], nnData.node.point[1]);
-                    spatialCtx.stroke();
-                    
-                    // O Vizinho em si
-                    spatialCtx.fillStyle = "#e67e22";
-                    spatialCtx.beginPath();
-                    spatialCtx.arc(nnData.node.point[0], nnData.node.point[1], 8, 0, Math.PI*2);
-                    spatialCtx.fill();
+                    spatialCtx.beginPath(); spatialCtx.moveTo(nnData.target[0], nnData.target[1]); spatialCtx.lineTo(nnData.node.point[0], nnData.node.point[1]); spatialCtx.stroke();
+                    spatialCtx.fillStyle = "#e67e22"; spatialCtx.beginPath(); spatialCtx.arc(nnData.node.point[0], nnData.node.point[1], 8, 0, Math.PI*2); spatialCtx.fill();
                 }
             }
         }
@@ -333,36 +263,25 @@
         function drawSpatialNode(node, minX, maxX, minY, maxY, depth) {
             if (!node) return;
             spatialCtx.lineWidth = 1;
-            
-            if (node.axis === 0) { // Corte Vertical
+            if (node.axis === 0) { 
                 spatialCtx.strokeStyle = "#ff6b6b";
                 spatialCtx.beginPath(); spatialCtx.moveTo(node.point[0], minY); spatialCtx.lineTo(node.point[0], maxY); spatialCtx.stroke();
-                drawSpatialNode(node.left, minX, node.point[0], minY, maxY, depth + 1);
-                drawSpatialNode(node.right, node.point[0], maxX, minY, maxY, depth + 1);
-            } else { // Corte Horizontal
+                drawSpatialNode(node.left, minX, node.point[0], minY, maxY, depth + 1); drawSpatialNode(node.right, node.point[0], maxX, minY, maxY, depth + 1);
+            } else { 
                 spatialCtx.strokeStyle = "#4d96ff";
                 spatialCtx.beginPath(); spatialCtx.moveTo(minX, node.point[1]); spatialCtx.lineTo(maxX, node.point[1]); spatialCtx.stroke();
-                drawSpatialNode(node.left, minX, maxX, minY, node.point[1], depth + 1);
-                drawSpatialNode(node.right, minX, maxX, node.point[1], maxY, depth + 1);
+                drawSpatialNode(node.left, minX, maxX, minY, node.point[1], depth + 1); drawSpatialNode(node.right, minX, maxX, node.point[1], maxY, depth + 1);
             }
-
-            // Ponto
-            spatialCtx.fillStyle = "#2d3436";
-            spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2); spatialCtx.fill();
+            spatialCtx.fillStyle = "#2d3436"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2); spatialCtx.fill();
             
-            // Texto (Espaçado)
             spatialCtx.fillStyle = "#636e72"; spatialCtx.font = "11px Arial";
             const label = `(${node.point[0]},${node.point[1]})`;
             let textX, textY;
-            if (depth % 2 === 0) {
-                spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; textX = node.point[0] + 6; textY = node.point[1] - 6;
-            } else {
-                 spatialCtx.textAlign = "right"; spatialCtx.textBaseline = "top"; textX = node.point[0] - 6; textY = node.point[1] + 6;
-            }
+            if (depth % 2 === 0) { spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; textX = node.point[0] + 6; textY = node.point[1] - 6; } 
+            else { spatialCtx.textAlign = "right"; spatialCtx.textBaseline = "top"; textX = node.point[0] - 6; textY = node.point[1] + 6; }
             spatialCtx.fillText(label, textX, textY);
         }
 
-        // Desenho da Árvore Hierárquica
         function drawHierarchy() {
             treeCtx.clearRect(0, 0, treeCv.width, treeCv.height);
             if (root) drawHierarchyNode(root, treeCv.width / 2, 30, treeCv.width / 4);
@@ -371,34 +290,19 @@
         function drawHierarchyNode(node, x, y, offset) {
             if (!node) return;
             treeCtx.strokeStyle = "#b2bec3"; treeCtx.lineWidth = 2;
-            if (node.left) {
-                treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 50); treeCtx.stroke();
-                drawHierarchyNode(node.left, x - offset, y + 50, offset / 2);
-            }
-            if (node.right) {
-                treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 50); treeCtx.stroke();
-                drawHierarchyNode(node.right, x + offset, y + 50, offset / 2);
-            }
-            treeCtx.fillStyle = node.axis === 0 ? "#fab1a0" : "#74b9ff"; 
-            treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3";
-            treeCtx.lineWidth = 1;
+            if (node.left) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 50); treeCtx.stroke(); drawHierarchyNode(node.left, x - offset, y + 50, offset / 2); }
+            if (node.right) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 50); treeCtx.stroke(); drawHierarchyNode(node.right, x + offset, y + 50, offset / 2); }
+            treeCtx.fillStyle = node.axis === 0 ? "#fab1a0" : "#74b9ff"; treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3"; treeCtx.lineWidth = 1;
             treeCtx.beginPath(); treeCtx.arc(x, y, 15, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
-            treeCtx.fillStyle = "#2d3436"; treeCtx.font = "bold 9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle";
-            treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y);
+            treeCtx.fillStyle = "#2d3436"; treeCtx.font = "bold 9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle"; treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y);
         }
 
         // --- AÇÕES E LOGS ---
-
         function log(msg, type = 'info') {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString();
-            
-            const li = document.createElement('li');
-            li.className = `log-line log-${type}`;
+            const now = new Date(); const timeStr = now.toLocaleTimeString();
+            const li = document.createElement('li'); li.className = `log-line log-${type}`;
             li.innerHTML = `<span class="log-time">${timeStr}</span> ${msg}`;
-            
-            logList.appendChild(li);
-            logList.scrollTop = logList.scrollHeight; // Auto-scroll
+            logList.appendChild(li); logList.scrollTop = logList.scrollHeight;
         }
 
         function getInputs() {
@@ -407,78 +311,97 @@
             const size = parseInt(document.getElementById('inSize').value) || 50;
             return { x, y, size };
         }
-
         function updateAll() { drawSpatial(); drawHierarchy(); }
+
+        // --- NOVA FUNÇÃO: AUTO INSERÇÃO ---
+        function toggleAutoInsert() {
+            const btn = document.getElementById('btn-auto');
+            const status = document.getElementById('status-indicator');
+            
+            if (autoInterval) {
+                // Parar
+                clearInterval(autoInterval);
+                autoInterval = null;
+                btn.innerHTML = "▶ Auto Inserir";
+                btn.style.background = "#16a085"; // Volta ao verde
+                status.innerText = "Pausado";
+                log("Auto inserção pausada.", "info");
+            } else {
+                // Iniciar
+                log("Iniciando inserção automática...", "info");
+                btn.innerHTML = "⏸ Parar";
+                btn.style.background = "#c0392b"; // Vermelho
+                status.innerText = "Rodando...";
+                status.style.color = "#2ecc71";
+                
+                // Limpa inputs para garantir que actionInsert gere aleatórios
+                document.getElementById('inX').value = '';
+                document.getElementById('inY').value = '';
+
+                // Executa imediatamente e depois no intervalo
+                actionInsert(); 
+                autoInterval = setInterval(() => {
+                    // Limpa inputs novamente a cada ciclo por segurança
+                    document.getElementById('inX').value = '';
+                    document.getElementById('inY').value = '';
+                    actionInsert();
+                }, 300); // 300ms entre inserções
+            }
+        }
 
         function actionInsert() {
             let { x, y } = getInputs();
+            // Se estiver vazio ou rodando automático (inputs vazios), gera aleatório
             if (isNaN(x) || isNaN(y)) {
                 x = Math.floor(Math.random()*380)+10;
                 y = Math.floor(Math.random()*380)+10;
-                document.getElementById('inX').value = x;
-                document.getElementById('inY').value = y;
+                // Só preenche o input se NÃO estiver no modo automático (para não piscar demais)
+                if (!autoInterval) {
+                    document.getElementById('inX').value = x;
+                    document.getElementById('inY').value = y;
+                }
             }
-            
             root = insert(root, [x, y], 0);
             updateAll();
-            log(`Ponto (${x}, ${y}) inserido com sucesso.`, 'success');
+            log(`Inserido: (${x}, ${y})`, 'success');
         }
 
         function actionExactSearch() {
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Busca Exata.", "error");
-
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
+            if (autoInterval) toggleAutoInsert(); // Pausa se tentar buscar
+            
             const result = findExact(root, [x, y]);
-            if (result) {
-                log(`Busca Exata: Ponto (${x}, ${y}) ENCONTRADO!`, 'success');
-                drawSpatial([result]); // Passa o nó para destacar
-            } else {
-                log(`Busca Exata: Ponto (${x}, ${y}) NÃO existe na árvore.`, 'error');
-                drawSpatial();
-            }
+            if (result) { log(`Encontrado: (${x}, ${y})`, 'success'); drawSpatial([result]); } 
+            else { log(`Não existe: (${x}, ${y})`, 'error'); drawSpatial(); }
             drawHierarchy();
         }
 
         function actionRangeSearch() {
             const { x, y, size } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y (Centro) para Busca Intervalo.", "error");
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
+            if (autoInterval) toggleAutoInsert();
 
-            // Define o retângulo baseado no centro (x,y) e tamanho
             const half = size / 2;
-            const range = {
-                minX: x - half, maxX: x + half,
-                minY: y - half, maxY: y + half
-            };
-
-            log(`Iniciando Busca por Intervalo: [${range.minX}, ${range.maxX}] x [${range.minY}, ${range.maxY}]...`, 'info');
-            
+            const range = { minX: x - half, maxX: x + half, minY: y - half, maxY: y + half };
+            log(`Busca Intervalo: Centro(${x},${y}) Raio ${half}`, 'info');
             const results = rangeSearch(root, range);
-            
-            if (results.length > 0) {
-                log(`Range Search: ${results.length} pontos encontrados na região.`, 'highlight');
-                drawSpatial(results, range); // Desenha pontos e o retângulo
-            } else {
-                log(`Range Search: Nenhum ponto encontrado na região especificada.`, 'info');
-                drawSpatial([], range);
-            }
+            if (results.length > 0) { log(`${results.length} pontos na região.`, 'highlight'); drawSpatial(results, range); } 
+            else { log(`Nenhum ponto na região.`, 'info'); drawSpatial([], range); }
             drawHierarchy();
         }
 
         function actionNearestNeighbor() {
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Vizinho Mais Próximo.", "error");
-
-            if (!root) return log("A árvore está vazia.", "error");
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
+            if (!root) return log("Árvore vazia.", "error");
+            if (autoInterval) toggleAutoInsert();
 
             const target = [x, y];
-            log(`Buscando Vizinho Mais Próximo de (${x}, ${y})...`, 'info');
-            
             const result = nearestNeighbor(root, target);
-            
             if (result.node) {
                 const dist = Math.sqrt(result.dist).toFixed(2);
-                log(`Vizinho Mais Próximo: (${result.node.point[0]}, ${result.node.point[1]}) | Distância: ${dist}`, 'highlight');
-                // Desenha com dados especiais de NN
+                log(`Vizinho mais próximo: (${result.node.point[0]}, ${result.node.point[1]}) Dist: ${dist}`, 'highlight');
                 drawSpatial([], null, { target: target, node: result.node, dist: result.dist });
             }
             drawHierarchy();
@@ -486,37 +409,38 @@
 
         function actionDelete() {
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Remover.", "error");
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
+            if (autoInterval) toggleAutoInsert();
 
             let points = getAllPoints(root);
             const initLen = points.length;
             points = points.filter(p => p[0] !== x || p[1] !== y);
 
-            if (points.length === initLen) {
-                log(`Falha ao remover: Ponto (${x}, ${y}) não encontrado.`, 'error');
-            } else {
-                root = null;
-                points.forEach(p => root = insert(root, p, 0));
-                updateAll();
-                log(`Ponto (${x}, ${y}) removido. Árvore reconstruída.`, 'success');
+            if (points.length === initLen) { log(`Erro: Ponto não encontrado.`, 'error'); } 
+            else {
+                root = null; points.forEach(p => root = insert(root, p, 0));
+                updateAll(); log(`Removido: (${x}, ${y})`, 'success');
             }
         }
 
         function resetAll() {
+            // Se estiver rodando auto, para primeiro
+            if (autoInterval) toggleAutoInsert();
+            
             root = null;
             updateAll();
-            log("Árvore limpa. Memória resetada.", 'info');
+            log("Árvore Resetada.", 'info');
+            document.getElementById('inX').value = '';
+            document.getElementById('inY').value = '';
         }
 
-        // Clique no canvas para preencher inputs
         spatialCv.addEventListener('mousedown', e => {
             const r = spatialCv.getBoundingClientRect();
             const x = Math.round(e.clientX - r.left);
             const y = Math.round(e.clientY - r.top);
             document.getElementById('inX').value = x;
             document.getElementById('inY').value = y;
-            // Feedback visual rápido sem inserir
-            log(`Coordenadas capturadas: (${x}, ${y})`, 'info');
+            if(!autoInterval) log(`Selecionado: (${x}, ${y})`, 'info');
         });
 
     </script>
