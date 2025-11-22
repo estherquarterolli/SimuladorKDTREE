@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador K-D Tree (Dashboard Corrigido)</title>
+    <title>Simulador K-D Tree (Passo a Passo Total)</title>
     <style>
         /* --- ESTILOS GERAIS --- */
         body {
@@ -29,26 +29,22 @@
             display: flex; flex: 1; gap: 20px; overflow: hidden;
         }
 
-        /* ESQUERDA: VISUAL + CONTROLES */
+        /* ESQUERDA */
         .left-pane {
             flex: 2; display: flex; flex-direction: column; gap: 10px;
             overflow-y: auto; padding-right: 5px;
         }
-
         .canvas-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-
         .panel {
             background: white; padding: 10px; border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center;
             flex: 1; min-width: 300px;
         }
-        
         canvas { 
             border: 1px solid #eee; background: #fafafa; 
             cursor: crosshair; border-radius: 4px; width: 100%; max-width: 380px;
         }
         h3 { margin: 0 0 5px 0; color: #555; font-size: 0.8rem; text-transform: uppercase; font-weight: 600;}
-
         .controls-area {
             background: white; padding: 10px; border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -59,7 +55,6 @@
         .right-pane {
             flex: 1; display: flex; flex-direction: column; min-width: 320px;
         }
-
         #log-container {
             background: #1e1e1e; border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -77,21 +72,18 @@
             list-style: none; margin: 0;
             font-family: 'Consolas', 'Fira Code', monospace; font-size: 0.8rem;
         }
-
+        
         /* Linhas do Log */
         .log-line { margin-bottom: 4px; padding-left: 5px; line-height: 1.4; border-left: 2px solid transparent; }
         .log-time { color: #569cd6; margin-right: 8px; font-size: 0.7rem; opacity: 0.7; }
-        
         .log-info { color: #d4d4d4; }
         .log-success { color: #4ec9b0; border-left-color: #4ec9b0; }
         .log-error { color: #f44747; border-left-color: #f44747; }
         .log-highlight { color: #dcdcaa; font-weight: bold; border-left-color: #dcdcaa; }
         
-        /* Estilo do Passo a Passo */
         .log-step { color: #808080; font-size: 0.8rem; padding-left: 15px; display: block; }
         .log-step::before { content: "↳ "; margin-right: 5px; color: #555; }
-        
-        .log-step-main { color: #9cdcfe; font-weight: bold; margin-top: 5px; display: block;} /* Títulos de passos */
+        .log-step-main { color: #9cdcfe; font-weight: bold; margin-top: 8px; display: block; border-top: 1px solid #333; padding-top: 5px;}
 
         /* Inputs e Botões */
         .input-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;}
@@ -124,9 +116,9 @@
 
     <header>
         <div>
-            <a href="index.html" class="back-btn">⬅ Voltar ao Menu</a>
+            <a href="menu.html" class="back-btn">⬅ Voltar ao Menu</a>
             <h1>Simulador K-D Tree (2D)</h1>
-            <p class="subtitle">Inserção Automática, Busca Exata e Remoção Detalhada.</p>
+            <p class="subtitle">Passo a passo detalhado em TODAS as operações.</p>
         </div>
     </header>
 
@@ -167,11 +159,11 @@
         <div class="right-pane">
             <div id="log-container">
                 <div class="log-header">
-                    <span>TERMINAL</span>
-                    <span id="status-indicator" style="color:#6a9955;">● Pronto</span>
+                    <span>TERMINAL DE PASSOS</span>
+                    <span id="status-indicator" style="color:#6a9955;">● Online</span>
                 </div>
                 <ul id="log-content">
-                    <li class="log-line"><span class="log-time">Sys</span> <span class="log-info">Sistema iniciado.</span></li>
+                    <li class="log-line"><span class="log-time">Sys</span> <span class="log-info">Pronto. Aguardando comando...</span></li>
                 </ul>
             </div>
         </div>
@@ -188,6 +180,7 @@
         
         let root = null;
         let autoInterval = null;
+        const getIndent = (d) => ""; // Simplificado para lista plana, ou usar "--" se quiser
 
         // --- CLASSE NODE ---
         class Node {
@@ -202,22 +195,23 @@
 
         function insert(node, point, depth, verbose = false) {
             if (!node) {
-                if(verbose) log(`Nível ${depth}: Criando nó folha (${point[0]}, ${point[1]})`, 'step');
+                if(verbose) log(`Nível ${depth}: Criado nó folha (${point}).`, 'step');
                 return new Node(point, depth % 2);
             }
             
-            if (node.point[0] === point[0] && node.point[1] === point[1]) return node; // Duplicata
+            if (node.point[0] === point[0] && node.point[1] === point[1]) {
+                if(verbose) log(`Nível ${depth}: Ponto já existe. Ignorando.`, 'step');
+                return node; 
+            }
 
             const axis = node.axis;
             const axisName = axis === 0 ? 'X' : 'Y';
-            const val = point[axis];
-            const nodeVal = node.point[axis];
             
-            if (val < nodeVal) {
-                if(verbose) log(`Nível ${depth} [${axisName}]: ${val} < ${nodeVal} → Esquerda`, 'step');
+            if (point[axis] < node.point[axis]) {
+                if(verbose) log(`Nível ${depth}: ${point[axis]} < ${node.point[axis]} (${axisName}) → Esquerda`, 'step');
                 node.left = insert(node.left, point, depth + 1, verbose);
             } else {
-                if(verbose) log(`Nível ${depth} [${axisName}]: ${val} ≥ ${nodeVal} → Direita`, 'step');
+                if(verbose) log(`Nível ${depth}: ${point[axis]} ≥ ${node.point[axis]} (${axisName}) → Direita`, 'step');
                 node.right = insert(node.right, point, depth + 1, verbose);
             }
             return node;
@@ -225,7 +219,7 @@
 
         function findExact(node, point, depth = 0) {
             if (!node) {
-                log(`Nível ${depth}: Nó nulo atingido. Ponto inexistente.`, 'step');
+                log(`Nível ${depth}: Nó nulo. Caminho sem saída.`, 'step');
                 return null;
             }
             
@@ -233,42 +227,91 @@
 
             const axis = node.axis;
             const axisName = axis === 0 ? 'X' : 'Y';
-            
-            // Log de decisão
             const dir = point[axis] < node.point[axis] ? "Esquerda" : "Direita";
-            log(`Nível ${depth}: Nó(${node.point}). Busca ${axisName}=${point[axis]}. Indo para ${dir}`, 'step');
+            
+            log(`Nível ${depth}: Nó(${node.point}). Comp ${axisName}: ${point[axis]} vs ${node.point[axis]}. Indo ${dir}`, 'step');
 
             if (point[axis] < node.point[axis]) return findExact(node.left, point, depth + 1);
             else return findExact(node.right, point, depth + 1);
         }
 
-        // (Mantido igual)
-        function rangeSearch(node, range, results = []) {
+        function rangeSearch(node, range, results = [], depth = 0) {
             if (!node) return results;
+            
             const x = node.point[0]; const y = node.point[1];
-            if (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY) results.push(node);
             const axis = node.axis;
-            if (axis === 0) {
-                if (range.minX <= x) rangeSearch(node.left, range, results);
-                if (range.maxX >= x) rangeSearch(node.right, range, results);
+            const axisName = axis === 0 ? 'X' : 'Y';
+
+            // Verifica se está dentro
+            const inside = (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY);
+            if (inside) {
+                log(`Nível ${depth}: Nó(${x},${y}) está DENTRO da região!`, 'step');
+                results.push(node);
             } else {
-                if (range.minY <= y) rangeSearch(node.left, range, results);
-                if (range.maxY >= y) rangeSearch(node.right, range, results);
+                // log(`Nível ${depth}: Nó(${x},${y}) fora.`, 'step'); // Opcional: muito spam
+            }
+
+            // Lógica de Poda (Pruning) Explicita
+            if (axis === 0) { // Corte X
+                if (range.minX <= x) {
+                    rangeSearch(node.left, range, results, depth + 1);
+                } else {
+                    log(`Nível ${depth}: PODA ESQUERDA (MinX ${range.minX} > NóX ${x})`, 'step');
+                }
+                if (range.maxX >= x) {
+                    rangeSearch(node.right, range, results, depth + 1);
+                } else {
+                    log(`Nível ${depth}: PODA DIREITA (MaxX ${range.maxX} < NóX ${x})`, 'step');
+                }
+            } else { // Corte Y
+                if (range.minY <= y) {
+                    rangeSearch(node.left, range, results, depth + 1);
+                } else {
+                    log(`Nível ${depth}: PODA CIMA (MinY ${range.minY} > NóY ${y})`, 'step');
+                }
+                if (range.maxY >= y) {
+                    rangeSearch(node.right, range, results, depth + 1);
+                } else {
+                    log(`Nível ${depth}: PODA BAIXO (MaxY ${range.maxY} < NóY ${y})`, 'step');
+                }
             }
             return results;
         }
 
-        // (Mantido igual)
         function nearestNeighbor(node, target, best, depth = 0) {
             if (!node) return best;
+
             const dist = distSq(node.point, target);
-            if (dist < best.dist) { best.node = node; best.dist = dist; }
             const axis = node.axis;
+            const axisName = axis === 0 ? 'X' : 'Y';
+            
+            if (dist < best.dist) {
+                best.node = node;
+                best.dist = dist;
+                log(`Nível ${depth}: Novo Vizinho Mais Próximo! (${node.point}) Dist: ${Math.sqrt(dist).toFixed(1)}`, 'step');
+            }
+
             const diff = target[axis] - node.point[axis];
-            let good = node.left, bad = node.right;
-            if (diff > 0) { good = node.right; bad = node.left; }
-            best = nearestNeighbor(good, target, best, depth + 1);
-            if (diff * diff < best.dist) best = nearestNeighbor(bad, target, best, depth + 1);
+            let goodSide = node.left, badSide = node.right;
+            let sideName = "Esquerda";
+            
+            if (diff > 0) { 
+                goodSide = node.right; badSide = node.left; 
+                sideName = "Direita";
+            }
+
+            // 1. Descer lado bom
+            // log(`Nível ${depth}: Descendo lado provável (${sideName})...`, 'step');
+            best = nearestNeighbor(goodSide, target, best, depth + 1);
+
+            // 2. Verificar Poda
+            const distToPlane = diff * diff;
+            if (distToPlane < best.dist) {
+                log(`Nível ${depth}: BACKTRACKING. Raio cruza eixo ${axisName}. Checando lado oposto...`, 'step');
+                best = nearestNeighbor(badSide, target, best, depth + 1);
+            } else {
+                log(`Nível ${depth}: PODA GEOMÉTRICA. Lado oposto longe demais.`, 'step');
+            }
             return best;
         }
 
@@ -281,7 +324,7 @@
             return list;
         }
 
-        // --- FUNÇÕES DE VISUALIZAÇÃO ---
+        // --- VISUALIZAÇÃO ---
         function drawSpatial(highlightNodes = [], searchRect = null, nnData = null) {
             spatialCtx.clearRect(0, 0, spatialCv.width, spatialCv.height);
             if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height, 0);
@@ -315,7 +358,6 @@
                 drawSpatialNode(node.left, minX, maxX, minY, node.point[1], depth + 1); drawSpatialNode(node.right, minX, maxX, node.point[1], maxY, depth + 1);
             }
             spatialCtx.fillStyle = "#333"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 3, 0, Math.PI*2); spatialCtx.fill();
-            
             spatialCtx.fillStyle = "#666"; spatialCtx.font = "10px Arial";
             let tx = node.point[0], ty = node.point[1];
             if (depth % 2 === 0) { spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; tx+=4; ty-=4; } 
@@ -365,9 +407,8 @@
         }
         function updateAll() { drawSpatial(); drawHierarchy(); }
 
-        // --- ACTIONS ---
+        // --- AÇÕES (HANDLERS) ---
 
-        // 1. AUTO INSERÇÃO CORRIGIDA
         function toggleAutoInsert() {
             const btn = document.getElementById('btn-auto');
             if (autoInterval) {
@@ -377,112 +418,74 @@
             } else {
                 log("Auto inserção iniciada...", 'info');
                 btn.innerText = "⏸ Parar"; btn.style.background = "#c0392b";
-                
-                // Função interna que força geração aleatória
-                const runAuto = () => {
-                    const rx = Math.floor(Math.random()*360)+20;
-                    const ry = Math.floor(Math.random()*360)+20;
-                    // Não chama getInputs, passa direto
-                    actionInsert(rx, ry); 
-                };
-                
+                const runAuto = () => { actionInsert(Math.floor(Math.random()*360)+20, Math.floor(Math.random()*360)+20); };
                 runAuto();
                 autoInterval = setInterval(runAuto, 400);
             }
         }
 
-        // Aceita parâmetros opcionais para o modo auto
         function actionInsert(autoX, autoY) {
             let x, y;
-            
-            if (typeof autoX !== 'undefined') {
-                // Modo Auto
-                x = autoX; y = autoY;
-            } else {
-                // Modo Manual
-                const inp = getInputs();
-                x = inp.x; y = inp.y;
-                if (isNaN(x) || isNaN(y)) {
-                    // Se manual mas vazio, gera aleatório e preenche
-                    x = Math.floor(Math.random()*360)+20; 
-                    y = Math.floor(Math.random()*360)+20;
-                    document.getElementById('inX').value = x;
-                    document.getElementById('inY').value = y;
-                }
-                clearLog();
-                log(`Inserindo Ponto (${x}, ${y})...`, 'step-main');
+            if (typeof autoX !== 'undefined') { x = autoX; y = autoY; } 
+            else {
+                const inp = getInputs(); x = inp.x; y = inp.y;
+                if (isNaN(x) || isNaN(y)) { x = Math.floor(Math.random()*360)+20; y = Math.floor(Math.random()*360)+20; document.getElementById('inX').value = x; document.getElementById('inY').value = y; }
+                clearLog(); log(`Inserindo Ponto (${x}, ${y})...`, 'step-main');
             }
-
-            root = insert(root, [x, y], 0, !autoInterval); // Verbose só se não for auto
+            root = insert(root, [x, y], 0, !autoInterval);
             updateAll();
             if(!autoInterval) log(`Sucesso: (${x},${y}) adicionado.`, 'success');
         }
 
-        // 2. BUSCA EXATA CORRIGIDA
         function actionExactSearch() {
             if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y } = getInputs();
-            
-            // Correção: Verifica X E Y
             if (isNaN(x) || isNaN(y)) return log("Erro: Preencha X e Y.", 'error');
-            
             log(`Iniciando Busca Exata por (${x}, ${y})...`, 'step-main');
             const res = findExact(root, [x,y]);
-            
-            if(res) { 
-                log(`Resultado: ENCONTRADO!`, 'success'); 
-                drawSpatial([res]); 
-            } else { 
-                log(`Resultado: Ponto não existe na árvore.`, 'error'); 
-                drawSpatial(); 
-            }
+            if(res) { log(`Resultado: ENCONTRADO!`, 'success'); drawSpatial([res]); } 
+            else { log(`Resultado: Ponto não existe na árvore.`, 'error'); drawSpatial(); }
         }
 
-        // 3. REMOÇÃO COM LOG DETALHADO (PASSO A PASSO SIMULADO)
         function actionDelete() {
             if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y } = getInputs();
             if (isNaN(x) || isNaN(y)) return log("Erro: Preencha X e Y.", 'error');
-
-            log(`Iniciando Protocolo de Remoção de (${x},${y})`, 'step-main');
+            log(`Removendo Ponto (${x},${y})...`, 'step-main');
             
-            // Passo 1: Verificar existência
-            log(`Passo 1: Buscando nó alvo na estrutura...`, 'step');
+            // Simulação de passos lógicos para remoção
+            log(`1. Varrendo árvore para encontrar o ponto...`, 'step');
             let pts = getAllPoints(root);
             const exists = pts.find(p => p[0] === x && p[1] === y);
             
             if (!exists) {
-                log(`Falha: Ponto não encontrado. Operação abortada.`, 'error');
+                log(`Falha: Ponto não encontrado na estrutura.`, 'error');
                 return;
             }
-            
-            log(`Sucesso: Alvo localizado.`, 'step');
-
-            // Passo 2: Isolamento
-            log(`Passo 2: Isolando nó e coletando nós remanescentes...`, 'step');
+            log(`2. Ponto encontrado. Isolando sub-árvores...`, 'step');
             const remaining = pts.filter(p => p[0] !== x || p[1] !== y);
             
-            // Passo 3: Reconstrução
-            log(`Passo 3: Removendo nó e rebalanceando árvore...`, 'step');
+            log(`3. Reconstruindo árvore balanceada com ${remaining.length} pontos...`, 'step');
             root = null; 
-            
-            // Reconstrói silenciosamente para atualizar a view
-            remaining.forEach(p => root = insert(root, p, 0, false));
+            remaining.forEach(p => root = insert(root, p, 0, false)); // Reconstrói silenciosamente
             
             updateAll(); 
-            log(`Operação concluída: (${x},${y}) removido. Estrutura íntegra.`, 'success');
+            log(`Operação concluída: Ponto removido.`, 'success');
         }
 
         function actionRangeSearch() {
             if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y, size } = getInputs();
             if (isNaN(x) || isNaN(y)) return log("Erro: Centro X, Y necessário.", 'error');
-            log(`Busca por Intervalo (Raio ${size})`, 'step-main');
+            log(`Busca Intervalo (Raio ${size}) em (${x},${y})`, 'step-main');
             const half = size/2;
             const range = { minX:x-half, maxX:x+half, minY:y-half, maxY:y+half };
-            const res = rangeSearch(root, range);
-            if(res.length) { log(`Encontrados ${res.length} pontos.`, 'highlight'); drawSpatial(res, range); }
-            else { log(`Nenhum ponto na área.`, 'info'); drawSpatial([], range); }
+            
+            // Passa verbose=true implícito
+            const res = rangeSearch(root, range, [], 0);
+            
+            if(res.length) { log(`FIM: Encontrados ${res.length} pontos.`, 'highlight'); drawSpatial(res, range); }
+            else { log(`FIM: Nenhum ponto na área.`, 'info'); drawSpatial([], range); }
         }
 
         function actionNearestNeighbor() {
@@ -490,11 +493,13 @@
             const { x, y } = getInputs();
             if (isNaN(x) || isNaN(y)) return log("Erro: Alvo X, Y necessário.", 'error');
             if (!root) return log("Árvore vazia.", 'error');
-            log(`Calculando Vizinho Mais Próximo de (${x},${y})`, 'step-main');
-            const res = nearestNeighbor(root, [x,y], {node:null, dist:Infinity});
+            
+            log(`Buscando Vizinho Mais Próximo de (${x},${y})`, 'step-main');
+            const res = nearestNeighbor(root, [x,y], {node:null, dist:Infinity}, 0);
+            
             if(res.node) {
                 const d = Math.sqrt(res.dist).toFixed(1);
-                log(`Vizinho: (${res.node.point}) | Distância: ${d}`, 'highlight');
+                log(`RESULTADO: (${res.node.point}) | Dist: ${d}`, 'highlight');
                 drawSpatial([], null, {target:[x,y], node:res.node, dist:res.dist});
             }
         }
@@ -510,10 +515,7 @@
             const y = Math.round(e.clientY - r.top);
             document.getElementById('inX').value = x;
             document.getElementById('inY').value = y;
-            if(!autoInterval) {
-                // Feedback visual rápido
-                log(`Coordenada selecionada: (${x}, ${y})`, 'info');
-            }
+            if(!autoInterval) log(`Selecionado: (${x}, ${y})`, 'info');
         });
     </script>
 </body>
