@@ -2,137 +2,178 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador K-D Tree: Dual View</title>
+    <title>Simulador 2D - Buscas Avançadas</title>
     <style>
+        /* --- ESTILOS GERAIS --- */
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Roboto, sans-serif;
             background-color: #f4f4f9;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
+            color: #333;
         }
-        h1 { margin-bottom: 10px; color: #333; }
-        
-        /* Layout Principal */
+        .back-btn {
+            position: absolute; top: 20px; left: 20px;
+            text-decoration: none; color: #555; font-weight: bold;
+            background: #ddd; padding: 8px 15px; border-radius: 5px;
+            transition: 0.2s;
+        }
+        .back-btn:hover { background: #ccc; }
+
+        h1 { margin-bottom: 10px; margin-top: 0; }
+        p.subtitle { color: #666; font-size: 0.9em; margin-bottom: 20px; max-width: 600px; text-align: center;}
+
+        /* --- LAYOUT --- */
         .main-container {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            align-items: flex-start;
-            flex-wrap: wrap;
+            display: flex; gap: 25px; justify-content: center;
+            align-items: flex-start; flex-wrap: wrap; margin-bottom: 15px;
         }
-
-        /* Estilos dos Painéis */
         .panel {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
+            background: white; padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;
+        }
+        canvas { border: 1px solid #e1e4e8; background: #fafafa; cursor: crosshair; border-radius: 4px; }
+        h3 { margin: 0 0 10px 0; color: #555; font-size: 1em; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* --- CONTROLES --- */
+        .controls-area {
+            background: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; gap: 15px; align-items: center;
+            width: 100%; max-width: 830px;
         }
         
-        canvas {
-            border: 1px solid #ccc;
-            background: #fff;
-            cursor: crosshair;
+        .input-group { display: flex; gap: 10px; align-items: center; }
+        input { 
+            padding: 10px; width: 60px; text-align: center; 
+            border: 1px solid #ddd; border-radius: 6px; outline: none; 
         }
+        input:focus { border-color: #007bff; }
+        label { font-size: 0.85em; font-weight: bold; color: #555; }
 
-        h3 { margin: 0 0 10px 0; color: #555; font-size: 1rem; }
-
-        /* Controles */
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        input { padding: 8px; width: 60px; text-align: center; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
         button {
-            padding: 8px 15px;
-            cursor: pointer;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
+            padding: 10px 15px; cursor: pointer; border: none; border-radius: 6px;
+            color: white; font-weight: 600; font-size: 0.9em; transition: transform 0.1s;
         }
-        .btn-add { background: #28a745; }
-        .btn-search { background: #007bff; }
-        .btn-del { background: #dc3545; }
-        .btn-clear { background: #6c757d; }
-        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.96); }
 
-        /* Log */
-        #log {
-            width: 100%;
-            max-width: 800px;
-            height: 60px;
-            overflow-y: auto;
-            margin-top: 10px;
-            background: #e9ecef;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 0.9em;
-            border-radius: 5px;
+        /* Cores dos Botões */
+        .btn-insert { background: #27ae60; } 
+        .btn-exact  { background: #2980b9; } /* Azul */
+        .btn-range  { background: #8e44ad; } /* Roxo */
+        .btn-nn     { background: #e67e22; } /* Laranja */
+        .btn-del    { background: #c0392b; } /* Vermelho */
+        .btn-clear  { background: #7f8c8d; } /* Cinza */
+
+        /* --- CAIXINHA DE LOG PROFISSIONAL --- */
+        #log-container {
+            width: 100%; max-width: 830px; margin-top: 15px;
+            background: #1e1e1e; border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em; overflow: hidden; display: flex; flex-direction: column;
         }
+        .log-header {
+            background: #333; color: #ddd; padding: 5px 10px;
+            font-size: 0.8em; border-bottom: 1px solid #444;
+        }
+        #log-content {
+            height: 120px; overflow-y: auto; padding: 10px;
+            list-style: none; margin: 0;
+        }
+        /* Estilos das linhas do log */
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        .log-time { color: #666; margin-right: 8px; font-size: 0.9em; }
+        
+        .log-info { color: #aaa; }
+        .log-success { color: #2ecc71; } /* Verde Matrix */
+        .log-error { color: #e74c3c; }   /* Vermelho Erro */
+        .log-highlight { color: #f1c40f; font-weight: bold; } /* Amarelo */
+
+        /* Scrollbar customizada para o log */
+        #log-content::-webkit-scrollbar { width: 8px; }
+        #log-content::-webkit-scrollbar-track { background: #1e1e1e; }
+        #log-content::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <h1>Simulador K-D Tree (2D + Estrutura)</h1>
+    <a href="index.html" class="back-btn">⬅ Voltar</a>
+
+    <h1>Simulador K-D Tree (2D)</h1>
+    <p class="subtitle">Visualize Inserção, Busca Exata, Busca por Intervalo e Vizinho Mais Próximo (NN)</p>
 
     <div class="main-container">
         <div class="panel">
-            <h3>Visão Espacial (O Espaço)</h3>
+            <h3>Visão Espacial (Mapa)</h3>
             <canvas id="spatialCanvas" width="400" height="400"></canvas>
         </div>
-
         <div class="panel">
-            <h3>Visão Hierárquica (A Memória)</h3>
+            <h3>Visão Hierárquica (Árvore)</h3>
             <canvas id="treeCanvas" width="400" height="400"></canvas>
         </div>
     </div>
 
-    <div class="controls">
-        <input type="number" id="inX" placeholder="X" min="0" max="400">
-        <input type="number" id="inY" placeholder="Y" min="0" max="400">
-        <button class="btn-add" onclick="actionInsert()">Inserir</button>
-        <button class="btn-search" onclick="actionSearch()">Buscar</button>
-        <button class="btn-del" onclick="actionDelete()">Remover</button>
-        <button class="btn-clear" onclick="resetAll()">Limpar</button>
+    <div class="controls-area">
+        <div class="input-group">
+            <div>
+                <label>X:</label> <input type="number" id="inX" placeholder="0-400">
+            </div>
+            <div>
+                <label>Y:</label> <input type="number" id="inY" placeholder="0-400">
+            </div>
+            <div style="border-left: 1px solid #ddd; padding-left: 10px; margin-left: 10px;">
+                <label title="Usado para o tamanho do quadrado na Busca por Intervalo">Raio/Tam:</label> 
+                <input type="number" id="inSize" value="50" placeholder="50">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-insert" onclick="actionInsert()">+ Inserir</button>
+            <button class="btn-exact" onclick="actionExactSearch()">🔍 Busca Exata</button>
+            <button class="btn-range" onclick="actionRangeSearch()">📦 Busca Intervalo</button>
+            <button class="btn-nn" onclick="actionNearestNeighbor()">🎯 Vizinho + Próximo</button>
+            <button class="btn-del" onclick="actionDelete()">🗑️ Remover</button>
+            <button class="btn-clear" onclick="resetAll()">♻️ Limpar</button>
+        </div>
     </div>
 
-    <div id="log">Log de eventos...</div>
+    <div id="log-container">
+        <div class="log-header">TERMINAL DE EXECUÇÃO</div>
+        <ul id="log-content">
+            <li class="log-line"><span class="log-time">00:00:00</span> <span class="log-info">Sistema iniciado. Pronto para operações.</span></li>
+        </ul>
+    </div>
 
     <script>
-        // --- CONFIGURAÇÃO ---
+        // --- VARIÁVEIS E SETUP ---
         const spatialCv = document.getElementById('spatialCanvas');
         const spatialCtx = spatialCv.getContext('2d');
         const treeCv = document.getElementById('treeCanvas');
         const treeCtx = treeCv.getContext('2d');
-        const logDiv = document.getElementById('log');
+        const logList = document.getElementById('log-content');
         
         let root = null;
 
-        // --- CLASSE NÓ ---
+        // --- CLASSE NODE ---
         class Node {
             constructor(point, axis) {
                 this.point = point; // [x, y]
                 this.left = null;
                 this.right = null;
-                this.axis = axis; // 0=Vertical(X), 1=Horizontal(Y)
+                this.axis = axis; // 0=X, 1=Y
             }
         }
 
-        // --- LÓGICA CORE (Igual à anterior) ---
+        // --- ALGORITMOS KD-TREE ---
+
+        // 1. Inserção
         function insert(node, point, depth) {
             if (!node) return new Node(point, depth % 2);
-            
-            // Evitar duplicatas exatas
-            if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
+            if (node.point[0] === point[0] && node.point[1] === point[1]) return node; // Duplicatas ignoradas
 
             const axis = node.axis;
             if (point[axis] < node.point[axis]) {
@@ -143,13 +184,87 @@
             return node;
         }
 
-        function find(node, point) {
+        // 2. Busca Exata
+        function findExact(node, point) {
             if (!node) return null;
             if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
             
             const axis = node.axis;
-            if (point[axis] < node.point[axis]) return find(node.left, point);
-            else return find(node.right, point);
+            if (point[axis] < node.point[axis]) return findExact(node.left, point);
+            return findExact(node.right, point);
+        }
+
+        // 3. Busca por Intervalo (Range Search)
+        // range = { minX, maxX, minY, maxY }
+        function rangeSearch(node, range, results = []) {
+            if (!node) return results;
+
+            const x = node.point[0];
+            const y = node.point[1];
+
+            // Verifica se o nó atual está dentro do retângulo
+            if (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY) {
+                results.push(node);
+            }
+
+            // Lógica de Poda (Pruning)
+            const axis = node.axis;
+            
+            // Se o corte é vertical (X)
+            if (axis === 0) {
+                // Se o limite mínimo do range for menor que o ponto, precisamos verificar a esquerda
+                if (range.minX <= x) rangeSearch(node.left, range, results);
+                // Se o limite máximo do range for maior que o ponto, precisamos verificar a direita
+                if (range.maxX >= x) rangeSearch(node.right, range, results);
+            } 
+            // Se o corte é horizontal (Y)
+            else {
+                if (range.minY <= y) rangeSearch(node.left, range, results);
+                if (range.maxY >= y) rangeSearch(node.right, range, results);
+            }
+
+            return results;
+        }
+
+        // 4. Vizinho Mais Próximo (Nearest Neighbor)
+        // Retorna { node: Node, dist: Number }
+        function nearestNeighbor(node, target, best = { node: null, dist: Infinity }) {
+            if (!node) return best;
+
+            // Distância do nó atual ao alvo
+            const d = distSq(node.point, target);
+            if (d < best.dist) {
+                best.node = node;
+                best.dist = d;
+            }
+
+            const axis = node.axis;
+            const diff = target[axis] - node.point[axis];
+
+            // Decide qual lado descer primeiro (o lado onde o ponto alvo está)
+            let goodSide = node.left;
+            let badSide = node.right;
+            if (diff > 0) { // Target está à direita/cima
+                goodSide = node.right;
+                badSide = node.left;
+            }
+
+            // 1. Busca no lado bom
+            best = nearestNeighbor(goodSide, target, best);
+
+            // 2. Verifica se precisa buscar no "lado ruim" (Poda Geométrica)
+            // Se a distância até o plano de corte for menor que a melhor distância encontrada,
+            // pode haver um ponto mais próximo do outro lado.
+            if (diff * diff < best.dist) {
+                best = nearestNeighbor(badSide, target, best);
+            }
+
+            return best;
+        }
+
+        // Auxiliar distância ao quadrado (evita raiz quadrada repetitiva)
+        function distSq(p1, p2) {
+            return (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2;
         }
 
         function getAllPoints(node, list = []) {
@@ -160,174 +275,248 @@
             return list;
         }
 
-        // --- VISUALIZAÇÃO 1: ESPACIAL (Cortes) ---
-        function drawSpatial() {
+        // --- VISUALIZAÇÃO ---
+
+        function drawSpatial(highlightNodes = [], searchRect = null, nnData = null) {
             spatialCtx.clearRect(0, 0, spatialCv.width, spatialCv.height);
-            if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height);
+            
+            // Desenha a árvore base
+            if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height, 0);
+
+            // Destaque para Busca por Intervalo (Retângulo)
+            if (searchRect) {
+                spatialCtx.fillStyle = "rgba(142, 68, 173, 0.2)";
+                spatialCtx.strokeStyle = "#8e44ad";
+                spatialCtx.lineWidth = 2;
+                const w = searchRect.maxX - searchRect.minX;
+                const h = searchRect.maxY - searchRect.minY;
+                spatialCtx.fillRect(searchRect.minX, searchRect.minY, w, h);
+                spatialCtx.strokeRect(searchRect.minX, searchRect.minY, w, h);
+            }
+
+            // Destaque para pontos encontrados (Range ou Exact)
+            highlightNodes.forEach(node => {
+                spatialCtx.fillStyle = "#f1c40f"; // Amarelo destaque
+                spatialCtx.beginPath();
+                spatialCtx.arc(node.point[0], node.point[1], 8, 0, Math.PI*2);
+                spatialCtx.fill();
+                spatialCtx.strokeStyle = "black";
+                spatialCtx.stroke();
+            });
+
+            // Destaque para Vizinho Mais Próximo
+            if (nnData) {
+                // Ponto alvo (onde o usuário clicou/digitou)
+                spatialCtx.strokeStyle = "#e67e22";
+                spatialCtx.setLineDash([5, 5]);
+                spatialCtx.beginPath();
+                spatialCtx.arc(nnData.target[0], nnData.target[1], Math.sqrt(nnData.dist), 0, Math.PI*2);
+                spatialCtx.stroke();
+                spatialCtx.setLineDash([]);
+
+                // Linha ligando alvo ao vizinho
+                if (nnData.node) {
+                    spatialCtx.beginPath();
+                    spatialCtx.moveTo(nnData.target[0], nnData.target[1]);
+                    spatialCtx.lineTo(nnData.node.point[0], nnData.node.point[1]);
+                    spatialCtx.stroke();
+                    
+                    // O Vizinho em si
+                    spatialCtx.fillStyle = "#e67e22";
+                    spatialCtx.beginPath();
+                    spatialCtx.arc(nnData.node.point[0], nnData.node.point[1], 8, 0, Math.PI*2);
+                    spatialCtx.fill();
+                }
+            }
         }
 
-        function drawSpatialNode(node, minX, maxX, minY, maxY) {
+        function drawSpatialNode(node, minX, maxX, minY, maxY, depth) {
             if (!node) return;
-
             spatialCtx.lineWidth = 1;
             
-            if (node.axis === 0) { // Corte Vertical (Vermelho)
-                spatialCtx.strokeStyle = "#ff4d4d";
-                spatialCtx.beginPath();
-                spatialCtx.moveTo(node.point[0], minY);
-                spatialCtx.lineTo(node.point[0], maxY);
-                spatialCtx.stroke();
-                
-                drawSpatialNode(node.left, minX, node.point[0], minY, maxY);
-                drawSpatialNode(node.right, node.point[0], maxX, minY, maxY);
-            } else { // Corte Horizontal (Azul)
-                spatialCtx.strokeStyle = "#007bff";
-                spatialCtx.beginPath();
-                spatialCtx.moveTo(minX, node.point[1]);
-                spatialCtx.lineTo(maxX, node.point[1]);
-                spatialCtx.stroke();
-
-                drawSpatialNode(node.left, minX, maxX, minY, node.point[1]);
-                drawSpatialNode(node.right, minX, maxX, node.point[1], maxY);
+            if (node.axis === 0) { // Corte Vertical
+                spatialCtx.strokeStyle = "#ff6b6b";
+                spatialCtx.beginPath(); spatialCtx.moveTo(node.point[0], minY); spatialCtx.lineTo(node.point[0], maxY); spatialCtx.stroke();
+                drawSpatialNode(node.left, minX, node.point[0], minY, maxY, depth + 1);
+                drawSpatialNode(node.right, node.point[0], maxX, minY, maxY, depth + 1);
+            } else { // Corte Horizontal
+                spatialCtx.strokeStyle = "#4d96ff";
+                spatialCtx.beginPath(); spatialCtx.moveTo(minX, node.point[1]); spatialCtx.lineTo(maxX, node.point[1]); spatialCtx.stroke();
+                drawSpatialNode(node.left, minX, maxX, minY, node.point[1], depth + 1);
+                drawSpatialNode(node.right, minX, maxX, node.point[1], maxY, depth + 1);
             }
 
             // Ponto
-            spatialCtx.fillStyle = "black";
-            spatialCtx.beginPath();
-            spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2);
-            spatialCtx.fill();
+            spatialCtx.fillStyle = "#2d3436";
+            spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2); spatialCtx.fill();
             
-            // Texto pequeno coordenadas
-            spatialCtx.fillStyle = "#555";
-            spatialCtx.font = "10px Arial";
-            spatialCtx.fillText(`(${node.point[0]},${node.point[1]})`, node.point[0]+5, node.point[1]-5);
+            // Texto (Espaçado)
+            spatialCtx.fillStyle = "#636e72"; spatialCtx.font = "11px Arial";
+            const label = `(${node.point[0]},${node.point[1]})`;
+            let textX, textY;
+            if (depth % 2 === 0) {
+                spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; textX = node.point[0] + 6; textY = node.point[1] - 6;
+            } else {
+                 spatialCtx.textAlign = "right"; spatialCtx.textBaseline = "top"; textX = node.point[0] - 6; textY = node.point[1] + 6;
+            }
+            spatialCtx.fillText(label, textX, textY);
         }
 
-        // --- VISUALIZAÇÃO 2: HIERÁRQUICA (Árvore Clássica) ---
+        // Desenho da Árvore Hierárquica
         function drawHierarchy() {
             treeCtx.clearRect(0, 0, treeCv.width, treeCv.height);
-            if (!root) return;
-            // Começa desenhando a raiz no meio superior
-            drawHierarchyNode(root, treeCv.width / 2, 40, treeCv.width / 4);
+            if (root) drawHierarchyNode(root, treeCv.width / 2, 30, treeCv.width / 4);
         }
 
         function drawHierarchyNode(node, x, y, offset) {
             if (!node) return;
-
-            // Desenha linhas para os filhos PRIMEIRO (para ficarem atrás das bolinhas)
-            treeCtx.strokeStyle = "#aaa";
-            treeCtx.lineWidth = 2;
-
+            treeCtx.strokeStyle = "#b2bec3"; treeCtx.lineWidth = 2;
             if (node.left) {
-                treeCtx.beginPath();
-                treeCtx.moveTo(x, y);
-                treeCtx.lineTo(x - offset, y + 60); // 60px para baixo
-                treeCtx.stroke();
-                drawHierarchyNode(node.left, x - offset, y + 60, offset / 2);
+                treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 50); treeCtx.stroke();
+                drawHierarchyNode(node.left, x - offset, y + 50, offset / 2);
             }
             if (node.right) {
-                treeCtx.beginPath();
-                treeCtx.moveTo(x, y);
-                treeCtx.lineTo(x + offset, y + 60);
-                treeCtx.stroke();
-                drawHierarchyNode(node.right, x + offset, y + 60, offset / 2);
+                treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 50); treeCtx.stroke();
+                drawHierarchyNode(node.right, x + offset, y + 50, offset / 2);
             }
+            treeCtx.fillStyle = node.axis === 0 ? "#fab1a0" : "#74b9ff"; 
+            treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3";
+            treeCtx.lineWidth = 1;
+            treeCtx.beginPath(); treeCtx.arc(x, y, 15, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
+            treeCtx.fillStyle = "#2d3436"; treeCtx.font = "bold 9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle";
+            treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y);
+        }
 
-            // Desenha o Nó (Círculo)
-            // Cor muda baseada no eixo de corte (Vermelho X, Azul Y)
-            treeCtx.fillStyle = node.axis === 0 ? "#ffe6e6" : "#e6f0ff"; // Fundo claro
-            treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3"; // Borda forte
+        // --- AÇÕES E LOGS ---
+
+        function log(msg, type = 'info') {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
             
-            treeCtx.beginPath();
-            treeCtx.arc(x, y, 18, 0, Math.PI * 2);
-            treeCtx.fill();
-            treeCtx.stroke();
-
-            // Texto dentro da bolinha
-            treeCtx.fillStyle = "#000";
-            treeCtx.font = "bold 10px Arial";
-            treeCtx.textAlign = "center";
-            treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y + 4);
+            const li = document.createElement('li');
+            li.className = `log-line log-${type}`;
+            li.innerHTML = `<span class="log-time">${timeStr}</span> ${msg}`;
+            
+            logList.appendChild(li);
+            logList.scrollTop = logList.scrollHeight; // Auto-scroll
         }
 
-        // --- INTERAÇÕES ---
-        function updateAll() {
-            drawSpatial();
-            drawHierarchy();
+        function getInputs() {
+            const x = parseInt(document.getElementById('inX').value);
+            const y = parseInt(document.getElementById('inY').value);
+            const size = parseInt(document.getElementById('inSize').value) || 50;
+            return { x, y, size };
         }
 
-        function log(msg) {
-            logDiv.innerText = "> " + msg + "\n" + logDiv.innerText;
-        }
+        function updateAll() { drawSpatial(); drawHierarchy(); }
 
         function actionInsert() {
-            const x = parseInt(document.getElementById('inX').value) || Math.floor(Math.random()*380)+10;
-            const y = parseInt(document.getElementById('inY').value) || Math.floor(Math.random()*380)+10;
+            let { x, y } = getInputs();
+            if (isNaN(x) || isNaN(y)) {
+                x = Math.floor(Math.random()*380)+10;
+                y = Math.floor(Math.random()*380)+10;
+                document.getElementById('inX').value = x;
+                document.getElementById('inY').value = y;
+            }
             
             root = insert(root, [x, y], 0);
             updateAll();
-            log(`Inserido: (${x}, ${y})`);
-            
-            // Limpa inputs para próximo uso
-            document.getElementById('inX').value = '';
-            document.getElementById('inY').value = '';
+            log(`Ponto (${x}, ${y}) inserido com sucesso.`, 'success');
         }
 
-        function actionSearch() {
-            const x = parseInt(document.getElementById('inX').value);
-            const y = parseInt(document.getElementById('inY').value);
-            if (isNaN(x) || isNaN(y)) return alert("Digite X e Y para buscar");
+        function actionExactSearch() {
+            const { x, y } = getInputs();
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Busca Exata.", "error");
 
-            const result = find(root, [x, y]);
+            const result = findExact(root, [x, y]);
             if (result) {
-                log(`ENCONTRADO: (${x}, ${y}) - Eixo de corte: ${result.axis === 0 ? 'Vertical' : 'Horizontal'}`);
-                // Destaque Visual (Opcional: desenhar um círculo verde)
-                spatialCtx.strokeStyle = "#00cc00";
-                spatialCtx.lineWidth = 3;
-                spatialCtx.beginPath();
-                spatialCtx.arc(x, y, 10, 0, Math.PI*2);
-                spatialCtx.stroke();
+                log(`Busca Exata: Ponto (${x}, ${y}) ENCONTRADO!`, 'success');
+                drawSpatial([result]); // Passa o nó para destacar
             } else {
-                log(`NÃO ENCONTRADO: (${x}, ${y})`);
+                log(`Busca Exata: Ponto (${x}, ${y}) NÃO existe na árvore.`, 'error');
+                drawSpatial();
             }
+            drawHierarchy();
+        }
+
+        function actionRangeSearch() {
+            const { x, y, size } = getInputs();
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y (Centro) para Busca Intervalo.", "error");
+
+            // Define o retângulo baseado no centro (x,y) e tamanho
+            const half = size / 2;
+            const range = {
+                minX: x - half, maxX: x + half,
+                minY: y - half, maxY: y + half
+            };
+
+            log(`Iniciando Busca por Intervalo: [${range.minX}, ${range.maxX}] x [${range.minY}, ${range.maxY}]...`, 'info');
+            
+            const results = rangeSearch(root, range);
+            
+            if (results.length > 0) {
+                log(`Range Search: ${results.length} pontos encontrados na região.`, 'highlight');
+                drawSpatial(results, range); // Desenha pontos e o retângulo
+            } else {
+                log(`Range Search: Nenhum ponto encontrado na região especificada.`, 'info');
+                drawSpatial([], range);
+            }
+            drawHierarchy();
+        }
+
+        function actionNearestNeighbor() {
+            const { x, y } = getInputs();
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Vizinho Mais Próximo.", "error");
+
+            if (!root) return log("A árvore está vazia.", "error");
+
+            const target = [x, y];
+            log(`Buscando Vizinho Mais Próximo de (${x}, ${y})...`, 'info');
+            
+            const result = nearestNeighbor(root, target);
+            
+            if (result.node) {
+                const dist = Math.sqrt(result.dist).toFixed(2);
+                log(`Vizinho Mais Próximo: (${result.node.point[0]}, ${result.node.point[1]}) | Distância: ${dist}`, 'highlight');
+                // Desenha com dados especiais de NN
+                drawSpatial([], null, { target: target, node: result.node, dist: result.dist });
+            }
+            drawHierarchy();
         }
 
         function actionDelete() {
-            const x = parseInt(document.getElementById('inX').value);
-            const y = parseInt(document.getElementById('inY').value);
-            if (isNaN(x) || isNaN(y)) return alert("Digite X e Y para remover");
+            const { x, y } = getInputs();
+            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y para Remover.", "error");
 
             let points = getAllPoints(root);
-            const initialLen = points.length;
-            // Remove o ponto da lista
+            const initLen = points.length;
             points = points.filter(p => p[0] !== x || p[1] !== y);
 
-            if (points.length === initialLen) {
-                log(`Erro: Ponto (${x}, ${y}) não existe.`);
-                return;
+            if (points.length === initLen) {
+                log(`Falha ao remover: Ponto (${x}, ${y}) não encontrado.`, 'error');
+            } else {
+                root = null;
+                points.forEach(p => root = insert(root, p, 0));
+                updateAll();
+                log(`Ponto (${x}, ${y}) removido. Árvore reconstruída.`, 'success');
             }
-
-            // Reconstrói árvore
-            root = null;
-            points.forEach(p => root = insert(root, p, 0));
-            updateAll();
-            log(`Removido: (${x}, ${y})`);
         }
 
         function resetAll() {
             root = null;
             updateAll();
-            log("Árvore limpa.");
+            log("Árvore limpa. Memória resetada.", 'info');
         }
 
-        // Clique no canvas Espacial para inserir rápido
+        // Clique no canvas para preencher inputs
         spatialCv.addEventListener('mousedown', e => {
             const r = spatialCv.getBoundingClientRect();
             const x = Math.round(e.clientX - r.left);
             const y = Math.round(e.clientY - r.top);
             document.getElementById('inX').value = x;
             document.getElementById('inY').value = y;
-            actionInsert();
+            // Feedback visual rápido sem inserir
+            log(`Coordenadas capturadas: (${x}, ${y})`, 'info');
         });
 
     </script>
