@@ -2,159 +2,215 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador 2D - Logs Detalhados</title>
+    <title>Simulador K-D Tree (Dashboard)</title>
     <style>
         /* --- ESTILOS GERAIS --- */
         body {
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #eef1f5;
+            margin: 0;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
             color: #333;
         }
+        
         .back-btn {
-            position: absolute; top: 20px; left: 20px;
             text-decoration: none; color: #555; font-weight: bold;
-            background: #ddd; padding: 8px 15px; border-radius: 5px;
-            transition: 0.2s;
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.9rem; margin-bottom: 10px; width: fit-content;
         }
-        .back-btn:hover { background: #ccc; }
+        .back-btn:hover { color: #000; text-decoration: underline; }
 
-        h1 { margin-bottom: 10px; margin-top: 0; }
-        p.subtitle { color: #666; font-size: 0.9em; margin-bottom: 20px; max-width: 600px; text-align: center;}
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        h1 { margin: 0; font-size: 1.5rem; color: #2c3e50; }
+        p.subtitle { margin: 0; color: #7f8c8d; font-size: 0.9rem; }
 
-        /* --- LAYOUT --- */
-        .main-container {
-            display: flex; gap: 25px; justify-content: center;
-            align-items: flex-start; flex-wrap: wrap; margin-bottom: 15px;
+        /* --- LAYOUT DASHBOARD (PRINCIPAL MUDANÇA) --- */
+        .app-container {
+            display: flex;
+            flex: 1; /* Ocupa o resto da altura */
+            gap: 20px;
+            overflow: hidden; /* Impede scroll na página toda, usa scroll interno */
         }
+
+        /* COLUNA ESQUERDA: VISUAL + CONTROLES */
+        .left-pane {
+            flex: 2; /* Ocupa 66% da largura */
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto; /* Scroll se a tela for pequena */
+            padding-right: 5px;
+        }
+
+        .canvas-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
         .panel {
-            background: white; padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;
-        }
-        canvas { border: 1px solid #e1e4e8; background: #fafafa; cursor: crosshair; border-radius: 4px; }
-        h3 { margin: 0 0 10px 0; color: #555; font-size: 1em; text-transform: uppercase; letter-spacing: 1px;}
-
-        /* --- CONTROLES --- */
-        .controls-area {
-            background: white; padding: 20px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; gap: 15px; align-items: center;
-            width: 100%; max-width: 830px;
+            background: white; padding: 10px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center;
+            flex: 1; min-width: 300px;
         }
         
-        .input-group { display: flex; gap: 10px; align-items: center; }
-        input { 
-            padding: 10px; width: 60px; text-align: center; 
-            border: 1px solid #ddd; border-radius: 6px; outline: none; 
+        canvas { 
+            border: 1px solid #eee; background: #fafafa; 
+            cursor: crosshair; border-radius: 4px; width: 100%; max-width: 400px; height: auto;
         }
-        input:focus { border-color: #007bff; }
-        label { font-size: 0.85em; font-weight: bold; color: #555; }
+        h3 { margin: 0 0 8px 0; color: #555; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
 
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .controls-area {
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; gap: 10px; align-items: center;
+        }
+
+        /* COLUNA DIREITA: TERMINAL */
+        .right-pane {
+            flex: 1; /* Ocupa 33% da largura */
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+        }
+
+        /* --- CAIXINHA DE LOG (ESTILO VS CODE) --- */
+        #log-container {
+            background: #1e1e1e; 
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex; 
+            flex-direction: column;
+            flex: 1; /* Estica até o fim da tela */
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+        .log-header {
+            background: #252526; color: #ccc; padding: 8px 15px;
+            font-size: 0.8rem; border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+            font-family: 'Segoe UI', sans-serif; font-weight: bold; letter-spacing: 0.5px;
+        }
+        #log-content {
+            flex: 1; /* Ocupa todo espaço restante */
+            overflow-y: auto; padding: 10px;
+            list-style: none; margin: 0;
+            font-family: 'Consolas', 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+
+        /* Estilos das linhas do log */
+        .log-line { margin-bottom: 6px; padding-left: 5px; line-height: 1.4; border-left: 2px solid transparent; }
+        .log-line:hover { background: rgba(255,255,255,0.05); }
+        
+        .log-time { color: #569cd6; margin-right: 8px; font-size: 0.75rem; opacity: 0.7; }
+        
+        .log-info { color: #d4d4d4; }
+        .log-success { color: #4ec9b0; border-left-color: #4ec9b0; } /* Verde ciano */
+        .log-error { color: #f44747; border-left-color: #f44747; }   /* Vermelho */
+        .log-highlight { color: #dcdcaa; font-weight: bold; border-left-color: #dcdcaa; } /* Amarelo suave */
+        
+        .log-step { color: #808080; font-size: 0.8rem; padding-left: 15px; }
+        .log-step::before { content: "›"; margin-right: 5px; color: #555; }
+
+        /* Scrollbar bonita */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        #log-content::-webkit-scrollbar-track { background: #1e1e1e; }
+        #log-content::-webkit-scrollbar-thumb { background: #444; }
+
+        /* Inputs e Botões */
+        .input-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;}
+        input { padding: 8px; width: 50px; text-align: center; border: 1px solid #ddd; border-radius: 4px; outline: none; }
+        input:focus { border-color: #007bff; box-shadow: 0 0 0 2px rgba(0,123,255,0.1); }
+        label { font-size: 0.8rem; font-weight: bold; color: #555; }
+        
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
         button {
-            padding: 10px 15px; cursor: pointer; border: none; border-radius: 6px;
-            color: white; font-weight: 600; font-size: 0.9em; transition: transform 0.1s;
+            padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px;
+            color: white; font-weight: 600; font-size: 0.85rem; transition: 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        button:active { transform: scale(0.96); }
+        button:hover { filter: brightness(110%); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
 
-        /* Cores dos Botões */
-        .btn-auto   { background: #16a085; min-width: 120px; }
+        /* Cores Botões */
+        .btn-auto   { background: #16a085; }
         .btn-insert { background: #27ae60; } 
         .btn-exact  { background: #2980b9; } 
         .btn-range  { background: #8e44ad; } 
         .btn-nn     { background: #e67e22; } 
         .btn-del    { background: #c0392b; } 
         .btn-clear  { background: #7f8c8d; } 
-
-        /* --- CAIXINHA DE LOG PROFISSIONAL --- */
-        #log-container {
-            width: 100%; max-width: 830px; margin-top: 15px;
-            background: #1e1e1e; border-radius: 8px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 0.85em; overflow: hidden; display: flex; flex-direction: column;
-        }
-        .log-header {
-            background: #333; color: #ddd; padding: 5px 10px;
-            font-size: 0.8em; border-bottom: 1px solid #444;
-            display: flex; justify-content: space-between;
-        }
-        #log-content {
-            height: 150px; overflow-y: auto; padding: 10px; /* Altura aumentada para ver os passos */
-            list-style: none; margin: 0;
-        }
-        
-        /* Estilos das linhas do log */
-        .log-line { margin-bottom: 4px; border-bottom: 1px solid #2a2a2a; padding-bottom: 2px; }
-        .log-time { color: #555; margin-right: 8px; font-size: 0.8em; }
-        
-        .log-info { color: #aaa; }
-        .log-success { color: #2ecc71; font-weight: bold; } 
-        .log-error { color: #e74c3c; }   
-        .log-highlight { color: #f1c40f; font-weight: bold; } 
-        
-        /* NOVO: Estilo para o passo a passo */
-        .log-step { color: #6c757d; padding-left: 15px; font-size: 0.9em; border-left: 2px solid #444; margin-left: 5px; }
-        .log-step em { color: #888; font-style: normal; }
-
-        #log-content::-webkit-scrollbar { width: 8px; }
-        #log-content::-webkit-scrollbar-track { background: #1e1e1e; }
-        #log-content::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <a href="index.html" class="back-btn">⬅ Voltar</a>
-
-    <h1>Simulador K-D Tree (2D)</h1>
-    <p class="subtitle">Logs detalhados mostrando o processo de decisão da árvore</p>
-
-    <div class="main-container">
-        <div class="panel">
-            <h3>Visão Espacial</h3>
-            <canvas id="spatialCanvas" width="400" height="400"></canvas>
+    <header>
+        <div>
+            <a href="index.html" class="back-btn">⬅ Voltar ao Menu</a>
+            <h1>Simulador K-D Tree (2D)</h1>
+            <p class="subtitle">Acompanhe a lógica da árvore em tempo real no terminal.</p>
         </div>
-        <div class="panel">
-            <h3>Visão Hierárquica</h3>
-            <canvas id="treeCanvas" width="400" height="400"></canvas>
-        </div>
-    </div>
+    </header>
 
-    <div class="controls-area">
-        <div class="input-group">
-            <div><label>X:</label> <input type="number" id="inX" placeholder="0-400"></div>
-            <div><label>Y:</label> <input type="number" id="inY" placeholder="0-400"></div>
-            <div style="border-left: 1px solid #ddd; padding-left: 10px; margin-left: 10px;">
-                <label>Raio/Tam:</label> <input type="number" id="inSize" value="50" placeholder="50">
+    <div class="app-container">
+        
+        <div class="left-pane">
+            <div class="canvas-row">
+                <div class="panel">
+                    <h3>Visão Espacial</h3>
+                    <canvas id="spatialCanvas" width="400" height="400"></canvas>
+                </div>
+                <div class="panel">
+                    <h3>Estrutura de Dados</h3>
+                    <canvas id="treeCanvas" width="400" height="400"></canvas>
+                </div>
+            </div>
+
+            <div class="controls-area">
+                <div class="input-group">
+                    <label>X:</label> <input type="number" id="inX" placeholder="X">
+                    <label>Y:</label> <input type="number" id="inY" placeholder="Y">
+                    <div style="width:1px; height:20px; background:#ddd; margin:0 10px;"></div>
+                    <label>Raio:</label> <input type="number" id="inSize" value="50" placeholder="50">
+                </div>
+
+                <div class="btn-group">
+                    <button id="btn-auto" class="btn-auto" onclick="toggleAutoInsert()">▶ Auto</button>
+                    <button class="btn-insert" onclick="actionInsert()">+ Inserir</button>
+                    <button class="btn-exact" onclick="actionExactSearch()">🔍 Busca Exata</button>
+                    <button class="btn-range" onclick="actionRangeSearch()">📦 Intervalo</button>
+                    <button class="btn-nn" onclick="actionNearestNeighbor()">🎯 Vizinho</button>
+                    <button class="btn-del" onclick="actionDelete()">🗑️ Remover</button>
+                    <button class="btn-clear" onclick="resetAll()">♻️ Limpar</button>
+                </div>
             </div>
         </div>
 
-        <div class="btn-group">
-            <button id="btn-auto" class="btn-auto" onclick="toggleAutoInsert()">▶ Auto Inserir</button>
-            <button class="btn-insert" onclick="actionInsert()">+ Inserir Manual</button>
-            <button class="btn-exact" onclick="actionExactSearch()">🔍 Busca Exata</button>
-            <button class="btn-range" onclick="actionRangeSearch()">📦 Busca Intervalo</button>
-            <button class="btn-nn" onclick="actionNearestNeighbor()">🎯 Vizinho + Próximo</button>
-            <button class="btn-del" onclick="actionDelete()">🗑️ Remover</button>
-            <button class="btn-clear" onclick="resetAll()">♻️ Limpar</button>
+        <div class="right-pane">
+            <div id="log-container">
+                <div class="log-header">
+                    <span>TERMINAL DE EXECUÇÃO</span>
+                    <span id="status-indicator" style="color:#6a9955; font-size:0.7rem;">● Online</span>
+                </div>
+                <ul id="log-content">
+                    <li class="log-line"><span class="log-time">Sys</span> <span class="log-info">Ambiente inicializado.</span></li>
+                    <li class="log-line"><span class="log-time">Hint</span> <span class="log-step">Use os botões à esquerda para operar.</span></li>
+                </ul>
+            </div>
         </div>
-    </div>
 
-    <div id="log-container">
-        <div class="log-header">
-            <span>TERMINAL DE EXECUÇÃO (Processo Detalhado)</span>
-            <span id="status-indicator" style="color:#aaa; font-size:0.9em;">Ocioso</span>
-        </div>
-        <ul id="log-content">
-            <li class="log-line"><span class="log-time">Sys</span> <span class="log-info">Sistema iniciado.</span></li>
-        </ul>
     </div>
 
     <script>
-        // --- VARIÁVEIS E SETUP ---
+        // --- VARIÁVEIS ---
         const spatialCv = document.getElementById('spatialCanvas');
         const spatialCtx = spatialCv.getContext('2d');
         const treeCv = document.getElementById('treeCanvas');
@@ -168,37 +224,31 @@
         class Node {
             constructor(point, axis) {
                 this.point = point; 
-                this.left = null;
-                this.right = null;
-                this.axis = axis; // 0=X, 1=Y
+                this.left = null; this.right = null;
+                this.axis = axis; 
             }
         }
 
-        // --- ALGORITMOS KD-TREE (COM LOGGING) ---
-        
-        // Helper para indentação visual no log
-        const getIndent = (depth) => " ".repeat(depth) + "↳ ";
+        // --- LOGIC HELPERS ---
+        const getIndent = (depth) => " ".repeat(depth * 2);
+
+        // --- ALGORITMOS CORE ---
 
         function insert(node, point, depth, verbose = false) {
             if (!node) {
-                if(verbose) log(`${getIndent(depth)}Criou folha no Nível ${depth}`, 'step');
+                if(verbose) log(`${getIndent(depth)}Criou nó folha.`, 'step');
                 return new Node(point, depth % 2);
             }
-            
-            // Duplicatas
-            if (node.point[0] === point[0] && node.point[1] === point[1]) {
-                if(verbose) log(`${getIndent(depth)}Ponto duplicado encontrado. Ignorando.`, 'step');
-                return node; 
-            }
+            if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
 
             const axis = node.axis;
             const axisName = axis === 0 ? 'X' : 'Y';
             
             if (point[axis] < node.point[axis]) {
-                if(verbose) log(`${getIndent(depth)}Comparando ${axisName}: ${point[axis]} < ${node.point[axis]} → Esquerda`, 'step');
+                if(verbose) log(`${getIndent(depth)}Comp ${axisName}: ${point[axis]} < ${node.point[axis]} → Esq`, 'step');
                 node.left = insert(node.left, point, depth + 1, verbose);
             } else {
-                if(verbose) log(`${getIndent(depth)}Comparando ${axisName}: ${point[axis]} ≥ ${node.point[axis]} → Direita`, 'step');
+                if(verbose) log(`${getIndent(depth)}Comp ${axisName}: ${point[axis]} ≥ ${node.point[axis]} → Dir`, 'step');
                 node.right = insert(node.right, point, depth + 1, verbose);
             }
             return node;
@@ -206,149 +256,97 @@
 
         function findExact(node, point, depth = 0) {
             if (!node) {
-                log(`${getIndent(depth)}Chegou em Nulo. Ponto não existe aqui.`, 'step');
+                log(`${getIndent(depth)}Nó nulo atingido.`, 'step');
                 return null;
             }
-            
-            log(`${getIndent(depth)}Visitando (${node.point[0]}, ${node.point[1]})`, 'step');
-
             if (node.point[0] === point[0] && node.point[1] === point[1]) return node;
             
             const axis = node.axis;
-            const axisName = axis === 0 ? 'X' : 'Y';
-            
-            if (point[axis] < node.point[axis]) {
-                log(`${getIndent(depth)}Busca ${axisName}: ${point[axis]} < ${node.point[axis]} → Esquerda`, 'step');
-                return findExact(node.left, point, depth + 1);
-            } else {
-                log(`${getIndent(depth)}Busca ${axisName}: ${point[axis]} ≥ ${node.point[axis]} → Direita`, 'step');
-                return findExact(node.right, point, depth + 1);
-            }
+            const dir = point[axis] < node.point[axis] ? "Esq" : "Dir";
+            log(`${getIndent(depth)}Nó(${node.point}) eixo ${axis===0?'X':'Y'}. Indo para ${dir}`, 'step');
+
+            if (point[axis] < node.point[axis]) return findExact(node.left, point, depth + 1);
+            else return findExact(node.right, point, depth + 1);
         }
 
         function rangeSearch(node, range, results = [], depth = 0) {
             if (!node) return results;
+            const x = node.point[0]; const y = node.point[1];
             
-            const x = node.point[0]; 
-            const y = node.point[1];
-            const axis = node.axis;
-
-            // Verifica se o nó está dentro
-            const inside = (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY);
-            if (inside) {
-                log(`${getIndent(depth)}Ponto (${x},${y}) está DENTRO da região! Adicionado.`, 'step');
+            // Check Inside
+            if (x >= range.minX && x <= range.maxX && y >= range.minY && y <= range.maxY) {
+                log(`${getIndent(depth)}★ Ponto (${x},${y}) capturado!`, 'step');
                 results.push(node);
-            } else {
-                // Opcional: Logar que visitou mas não está dentro (pode gerar muito spam)
-                // log(`${getIndent(depth)}Visitou (${x},${y}) - Fora`, 'step');
             }
 
-            // Lógica de Poda
-            if (axis === 0) { // Corte X
-                // Se o inicio da região (minX) está à esquerda do ponto, precisamos checar a esquerda
-                if (range.minX <= x) {
-                    rangeSearch(node.left, range, results, depth + 1);
-                } else {
-                    log(`${getIndent(depth)}Poda: Região inteira à direita de X=${x}. Ignorando Esquerda.`, 'step');
-                }
-                
-                if (range.maxX >= x) {
-                    rangeSearch(node.right, range, results, depth + 1);
-                } else {
-                    log(`${getIndent(depth)}Poda: Região inteira à esquerda de X=${x}. Ignorando Direita.`, 'step');
-                }
-            } else { // Corte Y
-                if (range.minY <= y) {
-                    rangeSearch(node.left, range, results, depth + 1);
-                } else {
-                    log(`${getIndent(depth)}Poda: Região inteira abaixo de Y=${y}. Ignorando Cima (Esq).`, 'step');
-                }
-                
-                if (range.maxY >= y) {
-                    rangeSearch(node.right, range, results, depth + 1);
-                } else {
-                    log(`${getIndent(depth)}Poda: Região inteira acima de Y=${y}. Ignorando Baixo (Dir).`, 'step');
-                }
+            // Pruning Logic
+            const axis = node.axis;
+            if (axis === 0) { // X
+                if (range.minX <= x) rangeSearch(node.left, range, results, depth+1);
+                else log(`${getIndent(depth)}Poda Esquerda (Range MinX > Node X)`, 'step');
+
+                if (range.maxX >= x) rangeSearch(node.right, range, results, depth+1);
+                else log(`${getIndent(depth)}Poda Direita (Range MaxX < Node X)`, 'step');
+            } else { // Y
+                if (range.minY <= y) rangeSearch(node.left, range, results, depth+1);
+                else log(`${getIndent(depth)}Poda Cima (Range MinY > Node Y)`, 'step');
+
+                if (range.maxY >= y) rangeSearch(node.right, range, results, depth+1);
+                else log(`${getIndent(depth)}Poda Baixo (Range MaxY < Node Y)`, 'step');
             }
             return results;
         }
 
         function nearestNeighbor(node, target, best, depth = 0) {
             if (!node) return best;
-
             const dist = distSq(node.point, target);
-            const indent = getIndent(depth);
-
-            // Atualiza melhor
+            
             if (dist < best.dist) {
-                best.node = node;
-                best.dist = dist;
-                log(`${indent}Novo Melhor Encontrado: (${node.point}) Dist: ${Math.sqrt(dist).toFixed(1)}`, 'step');
+                best.node = node; best.dist = dist;
+                log(`${getIndent(depth)}Novo Melhor: (${node.point}) d=${Math.sqrt(dist).toFixed(1)}`, 'step');
             }
 
             const axis = node.axis;
             const diff = target[axis] - node.point[axis];
-            
-            // Decide lado bom e ruim
-            let goodSide = node.left;
-            let badSide = node.right;
-            let sideName = "Esquerda";
-            
-            if (diff > 0) { 
-                goodSide = node.right; 
-                badSide = node.left; 
-                sideName = "Direita";
+            let good = node.left, bad = node.right;
+            if (diff > 0) { good = node.right; bad = node.left; }
+
+            best = nearestNeighbor(good, target, best, depth + 1);
+
+            if (diff * diff < best.dist) {
+                log(`${getIndent(depth)}Backtracking: Cruzando plano...`, 'step');
+                best = nearestNeighbor(bad, target, best, depth + 1);
             }
-
-            log(`${indent}Descendo para o lado provável (${sideName})`, 'step');
-            
-            // 1. Recursão Lado Bom
-            best = nearestNeighbor(goodSide, target, best, depth + 1);
-
-            // 2. Verifica Poda (Backtracking)
-            // Se a distância até o plano de corte for menor que a melhor distância atual, 
-            // precisamos checar o outro lado.
-            const distToPlane = diff * diff;
-            
-            if (distToPlane < best.dist) {
-                log(`${indent}Backtracking: Raio cruza o plano de corte. Checando lado oposto...`, 'step');
-                best = nearestNeighbor(badSide, target, best, depth + 1);
-            } else {
-                log(`${indent}Poda Geométrica: O outro lado está longe demais. Ignorando.`, 'step');
-            }
-
             return best;
         }
 
         function distSq(p1, p2) { return (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2; }
-
         function getAllPoints(node, list = []) {
             if (!node) return list;
             list.push(node.point);
-            getAllPoints(node.left, list);
-            getAllPoints(node.right, list);
+            getAllPoints(node.left, list); getAllPoints(node.right, list);
             return list;
         }
 
-        // --- VISUALIZAÇÃO (IGUAL AO ANTERIOR) ---
+        // --- VISUALIZAÇÃO ---
         function drawSpatial(highlightNodes = [], searchRect = null, nnData = null) {
             spatialCtx.clearRect(0, 0, spatialCv.width, spatialCv.height);
             if (root) drawSpatialNode(root, 0, spatialCv.width, 0, spatialCv.height, 0);
 
             if (searchRect) {
-                spatialCtx.fillStyle = "rgba(142, 68, 173, 0.2)"; spatialCtx.strokeStyle = "#8e44ad"; spatialCtx.lineWidth = 2;
+                spatialCtx.fillStyle = "rgba(142, 68, 173, 0.15)"; spatialCtx.strokeStyle = "#8e44ad"; spatialCtx.lineWidth = 2;
                 const w = searchRect.maxX - searchRect.minX; const h = searchRect.maxY - searchRect.minY;
                 spatialCtx.fillRect(searchRect.minX, searchRect.minY, w, h); spatialCtx.strokeRect(searchRect.minX, searchRect.minY, w, h);
             }
             highlightNodes.forEach(node => {
-                spatialCtx.fillStyle = "#f1c40f"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 8, 0, Math.PI*2); spatialCtx.fill(); spatialCtx.strokeStyle = "black"; spatialCtx.stroke();
+                spatialCtx.fillStyle = "#f1c40f"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 6, 0, Math.PI*2); spatialCtx.fill(); spatialCtx.stroke();
             });
             if (nnData) {
-                spatialCtx.strokeStyle = "#e67e22"; spatialCtx.setLineDash([5, 5]);
+                spatialCtx.strokeStyle = "#e67e22"; spatialCtx.setLineDash([4, 4]);
                 spatialCtx.beginPath(); spatialCtx.arc(nnData.target[0], nnData.target[1], Math.sqrt(nnData.dist), 0, Math.PI*2); spatialCtx.stroke(); spatialCtx.setLineDash([]);
                 if (nnData.node) {
                     spatialCtx.beginPath(); spatialCtx.moveTo(nnData.target[0], nnData.target[1]); spatialCtx.lineTo(nnData.node.point[0], nnData.node.point[1]); spatialCtx.stroke();
-                    spatialCtx.fillStyle = "#e67e22"; spatialCtx.beginPath(); spatialCtx.arc(nnData.node.point[0], nnData.node.point[1], 8, 0, Math.PI*2); spatialCtx.fill();
+                    spatialCtx.fillStyle = "#e67e22"; spatialCtx.beginPath(); spatialCtx.arc(nnData.node.point[0], nnData.node.point[1], 6, 0, Math.PI*2); spatialCtx.fill();
                 }
             }
         }
@@ -365,14 +363,14 @@
                 spatialCtx.beginPath(); spatialCtx.moveTo(minX, node.point[1]); spatialCtx.lineTo(maxX, node.point[1]); spatialCtx.stroke();
                 drawSpatialNode(node.left, minX, maxX, minY, node.point[1], depth + 1); drawSpatialNode(node.right, minX, maxX, node.point[1], maxY, depth + 1);
             }
-            spatialCtx.fillStyle = "#2d3436"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 4, 0, Math.PI*2); spatialCtx.fill();
+            spatialCtx.fillStyle = "#333"; spatialCtx.beginPath(); spatialCtx.arc(node.point[0], node.point[1], 3, 0, Math.PI*2); spatialCtx.fill();
             
-            spatialCtx.fillStyle = "#636e72"; spatialCtx.font = "11px Arial";
-            const label = `(${node.point[0]},${node.point[1]})`;
-            let textX, textY;
-            if (depth % 2 === 0) { spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; textX = node.point[0] + 6; textY = node.point[1] - 6; } 
-            else { spatialCtx.textAlign = "right"; spatialCtx.textBaseline = "top"; textX = node.point[0] - 6; textY = node.point[1] + 6; }
-            spatialCtx.fillText(label, textX, textY);
+            // Texto Inteligente
+            spatialCtx.fillStyle = "#666"; spatialCtx.font = "10px Arial";
+            let tx = node.point[0], ty = node.point[1];
+            if (depth % 2 === 0) { spatialCtx.textAlign = "left"; spatialCtx.textBaseline = "bottom"; tx+=4; ty-=4; } 
+            else { spatialCtx.textAlign = "right"; spatialCtx.textBaseline = "top"; tx-=4; ty+=4; }
+            spatialCtx.fillText(`(${node.point})`, tx, ty);
         }
 
         function drawHierarchy() {
@@ -382,39 +380,35 @@
 
         function drawHierarchyNode(node, x, y, offset) {
             if (!node) return;
-            treeCtx.strokeStyle = "#b2bec3"; treeCtx.lineWidth = 2;
-            if (node.left) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 50); treeCtx.stroke(); drawHierarchyNode(node.left, x - offset, y + 50, offset / 2); }
-            if (node.right) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 50); treeCtx.stroke(); drawHierarchyNode(node.right, x + offset, y + 50, offset / 2); }
-            treeCtx.fillStyle = node.axis === 0 ? "#fab1a0" : "#74b9ff"; treeCtx.strokeStyle = node.axis === 0 ? "#d63031" : "#0984e3"; treeCtx.lineWidth = 1;
-            treeCtx.beginPath(); treeCtx.arc(x, y, 15, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
-            treeCtx.fillStyle = "#2d3436"; treeCtx.font = "bold 9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle"; treeCtx.fillText(`${node.point[0]},${node.point[1]}`, x, y);
+            treeCtx.strokeStyle = "#ccc"; treeCtx.lineWidth = 1;
+            if (node.left) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 45); treeCtx.stroke(); drawHierarchyNode(node.left, x - offset, y + 45, offset / 2); }
+            if (node.right) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 45); treeCtx.stroke(); drawHierarchyNode(node.right, x + offset, y + 45, offset / 2); }
+            
+            treeCtx.fillStyle = node.axis === 0 ? "#ffecec" : "#ecf3ff"; 
+            treeCtx.strokeStyle = node.axis === 0 ? "#e74c3c" : "#3498db";
+            treeCtx.lineWidth = 1;
+            treeCtx.beginPath(); treeCtx.arc(x, y, 13, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
+            treeCtx.fillStyle = "#333"; treeCtx.font = "9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle";
+            treeCtx.fillText(`${node.point}`, x, y);
         }
 
-        // --- AÇÕES E LOGS ---
+        // --- SISTEMA DE LOG ---
         function log(msg, type = 'info') {
-            // No modo automático, ignoramos logs do tipo 'step' para não travar o browser
-            if (autoInterval && type === 'step') return;
-
+            if (autoInterval && type === 'step') return; // Evita spam no auto
             const now = new Date(); 
             const timeStr = now.toLocaleTimeString('pt-BR', { hour12: false });
             const li = document.createElement('li'); 
             li.className = `log-line log-${type}`;
             
-            // Se for passo a passo, não mostra timestamp para ficar mais limpo
-            if (type === 'step') {
-                li.innerHTML = `${msg}`;
-            } else {
-                li.innerHTML = `<span class="log-time">${timeStr}</span> ${msg}`;
-            }
+            if(type === 'step') li.innerHTML = `${msg}`;
+            else li.innerHTML = `<span class="log-time">${timeStr}</span> ${msg}`;
             
             logList.appendChild(li); 
-            logList.scrollTop = logList.scrollHeight;
+            // Auto Scroll Suave
+            requestAnimationFrame(() => { logList.scrollTop = logList.scrollHeight; });
         }
         
-        function clearLog() {
-            logList.innerHTML = '';
-        }
-
+        function clearLog() { logList.innerHTML = ''; }
         function getInputs() {
             const x = parseInt(document.getElementById('inX').value);
             const y = parseInt(document.getElementById('inY').value);
@@ -423,152 +417,93 @@
         }
         function updateAll() { drawSpatial(); drawHierarchy(); }
 
-        // --- AÇÕES ---
+        // --- AÇÕES DO USUÁRIO ---
 
         function toggleAutoInsert() {
             const btn = document.getElementById('btn-auto');
-            const status = document.getElementById('status-indicator');
-            
             if (autoInterval) {
-                clearInterval(autoInterval);
-                autoInterval = null;
-                btn.innerHTML = "▶ Auto Inserir";
-                btn.style.background = "#16a085";
-                status.innerText = "Ocioso";
-                log("Auto inserção pausada.", "info");
+                clearInterval(autoInterval); autoInterval = null;
+                btn.innerText = "▶ Auto"; btn.style.background = "#16a085";
+                log("Auto inserção parada.", 'info');
             } else {
-                log("Iniciando inserção automática (Logs detalhados ocultos)...", "info");
-                btn.innerHTML = "⏸ Parar";
-                btn.style.background = "#c0392b";
-                status.innerText = "Rodando...";
-                status.style.color = "#2ecc71";
-                document.getElementById('inX').value = ''; document.getElementById('inY').value = '';
+                log("Iniciando auto inserção...", 'info');
+                btn.innerText = "⏸ Parar"; btn.style.background = "#c0392b";
                 actionInsert(); 
-                autoInterval = setInterval(() => {
-                    document.getElementById('inX').value = ''; document.getElementById('inY').value = '';
-                    actionInsert();
-                }, 300);
+                autoInterval = setInterval(actionInsert, 400);
             }
         }
 
         function actionInsert() {
             let { x, y } = getInputs();
             if (isNaN(x) || isNaN(y)) {
-                x = Math.floor(Math.random()*380)+10;
-                y = Math.floor(Math.random()*380)+10;
-                if (!autoInterval) {
-                    document.getElementById('inX').value = x;
-                    document.getElementById('inY').value = y;
-                }
+                x = Math.floor(Math.random()*360)+20; y = Math.floor(Math.random()*360)+20;
+                if (!autoInterval) { document.getElementById('inX').value = x; document.getElementById('inY').value = y; }
             }
-            
-            // Se for manual, limpamos o log para focar na nova ação
-            if(!autoInterval) {
-                clearLog();
-                log(`Iniciando inserção de (${x}, ${y})...`, 'info');
-            }
-
-            // Passamos 'true' no último parâmetro para ativar o verbose (log detalhado)
-            // Mas a função log() filtra isso se estiver no modo auto
-            root = insert(root, [x, y], 0, true); 
-            
+            if(!autoInterval) { clearLog(); log(`Inserindo (${x},${y})...`, 'info'); }
+            root = insert(root, [x, y], 0, true);
             updateAll();
-            log(`Sucesso: Ponto (${x}, ${y}) inserido.`, 'success');
+            if(!autoInterval) log(`OK: (${x},${y}) inserido.`, 'success');
         }
 
         function actionExactSearch() {
-            if (autoInterval) toggleAutoInsert();
-            clearLog();
+            if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
-
-            log(`Iniciando Busca Exata por (${x}, ${y})...`, 'info');
-            const result = findExact(root, [x, y]);
-            
-            if (result) { log(`Encontrado: (${x}, ${y})`, 'success'); drawSpatial([result]); } 
-            else { log(`Resultado: Ponto não encontrado.`, 'error'); drawSpatial(); }
-            drawHierarchy();
+            if (isNaN(x)) return log("Erro: Defina X e Y.", 'error');
+            log(`Buscando (${x},${y})...`, 'info');
+            const res = findExact(root, [x,y]);
+            if(res) { log(`ENCONTRADO!`, 'success'); drawSpatial([res]); }
+            else { log(`Não encontrado.`, 'error'); drawSpatial(); }
         }
 
         function actionRangeSearch() {
-            if (autoInterval) toggleAutoInsert();
-            clearLog();
+            if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y, size } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
-
-            const half = size / 2;
-            const range = { minX: x - half, maxX: x + half, minY: y - half, maxY: y + half };
-            
-            log(`Iniciando Busca por Intervalo...`, 'info');
-            log(`Região: X[${range.minX} a ${range.maxX}], Y[${range.minY} a ${range.maxY}]`, 'info');
-            
-            const results = rangeSearch(root, range);
-            
-            if (results.length > 0) { log(`Finalizado: ${results.length} pontos encontrados.`, 'highlight'); drawSpatial(results, range); } 
-            else { log(`Finalizado: Nenhum ponto encontrado.`, 'info'); drawSpatial([], range); }
-            drawHierarchy();
+            if (isNaN(x)) return log("Erro: Defina centro X, Y.", 'error');
+            const half = size/2;
+            const range = { minX:x-half, maxX:x+half, minY:y-half, maxY:y+half };
+            log(`Range Search: Centro(${x},${y}) Tamanho ${size}`, 'info');
+            const res = rangeSearch(root, range);
+            if(res.length) { log(`FIM: ${res.length} pontos na área.`, 'highlight'); drawSpatial(res, range); }
+            else { log(`FIM: Nenhum ponto na área.`, 'info'); drawSpatial([], range); }
         }
 
         function actionNearestNeighbor() {
-            if (autoInterval) toggleAutoInsert();
-            if (!root) return log("Árvore vazia.", "error");
-            clearLog();
-            
+            if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
-
-            log(`Iniciando Busca Vizinho Mais Próximo de (${x}, ${y})...`, 'info');
-            
-            const target = [x, y];
-            // best inicial = infinito
-            const result = nearestNeighbor(root, target, { node: null, dist: Infinity });
-            
-            if (result.node) {
-                const dist = Math.sqrt(result.dist).toFixed(2);
-                log(`Resultado Final: Ponto (${result.node.point}) com dist ${dist}`, 'highlight');
-                drawSpatial([], null, { target: target, node: result.node, dist: result.dist });
+            if (isNaN(x)) return log("Erro: Defina alvo X, Y.", 'error');
+            if (!root) return log("Árvore vazia.", 'error');
+            log(`Procurando Vizinho de (${x},${y})...`, 'info');
+            const res = nearestNeighbor(root, [x,y], {node:null, dist:Infinity});
+            if(res.node) {
+                log(`MELHOR VIZINHO: (${res.node.point})`, 'highlight');
+                drawSpatial([], null, {target:[x,y], node:res.node, dist:res.dist});
             }
-            drawHierarchy();
         }
 
         function actionDelete() {
-            if (autoInterval) toggleAutoInsert();
-            clearLog();
+            if(autoInterval) toggleAutoInsert(); clearLog();
             const { x, y } = getInputs();
-            if (isNaN(x) || isNaN(y)) return log("Erro: Insira X e Y.", "error");
-
-            let points = getAllPoints(root);
-            const initLen = points.length;
-            points = points.filter(p => p[0] !== x || p[1] !== y);
-
-            if (points.length === initLen) { log(`Erro: Ponto não encontrado para remoção.`, 'error'); } 
+            if (isNaN(x)) return log("Erro: X e Y necessários.", 'error');
+            let pts = getAllPoints(root);
+            const pre = pts.length;
+            pts = pts.filter(p => p[0]!==x || p[1]!==y);
+            if(pts.length === pre) log("Ponto não existe.", 'error');
             else {
-                root = null; 
-                log("Reconstruindo árvore sem o ponto removido...", 'info');
-                points.forEach(p => root = insert(root, p, 0, false)); // False para não logar reconstrução
-                updateAll(); 
-                log(`Removido: (${x}, ${y})`, 'success');
+                root = null; pts.forEach(p => root = insert(root, p, 0, false));
+                updateAll(); log(`Ponto (${x},${y}) deletado.`, 'success');
             }
         }
 
         function resetAll() {
-            if (autoInterval) toggleAutoInsert();
-            root = null;
-            updateAll();
-            clearLog();
-            log("Árvore Resetada.", 'info');
-            document.getElementById('inX').value = '';
-            document.getElementById('inY').value = '';
+            if(autoInterval) toggleAutoInsert();
+            root = null; updateAll(); clearLog(); log("Sistema resetado.", 'info');
         }
 
         spatialCv.addEventListener('mousedown', e => {
             const r = spatialCv.getBoundingClientRect();
-            const x = Math.round(e.clientX - r.left);
-            const y = Math.round(e.clientY - r.top);
-            document.getElementById('inX').value = x;
-            document.getElementById('inY').value = y;
+            document.getElementById('inX').value = Math.round(e.clientX - r.left);
+            document.getElementById('inY').value = Math.round(e.clientY - r.top);
         });
-
     </script>
 </body>
 </html>
