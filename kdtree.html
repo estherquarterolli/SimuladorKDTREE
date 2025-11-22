@@ -116,7 +116,7 @@
 
     <header>
         <div>
-            <a href="menu.html" class="back-btn">⬅ Voltar ao Menu</a>
+            <a href="index.html" class="back-btn">⬅ Voltar ao Menu</a>
             <h1>Simulador K-D Tree (2D)</h1>
             <p class="subtitle">Passo a passo detalhado em TODAS as operações.</p>
         </div>
@@ -180,7 +180,7 @@
         
         let root = null;
         let autoInterval = null;
-        const getIndent = (d) => ""; // Simplificado para lista plana, ou usar "--" se quiser
+        const getIndent = (d) => ""; 
 
         // --- CLASSE NODE ---
         class Node {
@@ -247,8 +247,6 @@
             if (inside) {
                 log(`Nível ${depth}: Nó(${x},${y}) está DENTRO da região!`, 'step');
                 results.push(node);
-            } else {
-                // log(`Nível ${depth}: Nó(${x},${y}) fora.`, 'step'); // Opcional: muito spam
             }
 
             // Lógica de Poda (Pruning) Explicita
@@ -293,15 +291,12 @@
 
             const diff = target[axis] - node.point[axis];
             let goodSide = node.left, badSide = node.right;
-            let sideName = "Esquerda";
             
             if (diff > 0) { 
                 goodSide = node.right; badSide = node.left; 
-                sideName = "Direita";
             }
 
             // 1. Descer lado bom
-            // log(`Nível ${depth}: Descendo lado provável (${sideName})...`, 'step');
             best = nearestNeighbor(goodSide, target, best, depth + 1);
 
             // 2. Verificar Poda
@@ -370,14 +365,19 @@
             if (root) drawHierarchyNode(root, treeCv.width / 2, 30, treeCv.width / 4);
         }
 
+        // FUNÇÃO MODIFICADA: AUMENTO DO RAIO DAS BOLINHAS
         function drawHierarchyNode(node, x, y, offset) {
             if (!node) return;
             treeCtx.strokeStyle = "#ccc"; treeCtx.lineWidth = 1;
             if (node.left) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x - offset, y + 45); treeCtx.stroke(); drawHierarchyNode(node.left, x - offset, y + 45, offset / 2); }
             if (node.right) { treeCtx.beginPath(); treeCtx.moveTo(x, y); treeCtx.lineTo(x + offset, y + 45); treeCtx.stroke(); drawHierarchyNode(node.right, x + offset, y + 45, offset / 2); }
             treeCtx.fillStyle = node.axis === 0 ? "#ffecec" : "#ecf3ff"; treeCtx.strokeStyle = node.axis === 0 ? "#e74c3c" : "#3498db"; treeCtx.lineWidth = 1;
-            treeCtx.beginPath(); treeCtx.arc(x, y, 12, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
-            treeCtx.fillStyle = "#333"; treeCtx.font = "9px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle"; treeCtx.fillText(`${node.point}`, x, y);
+            
+            // AQUI: Raio aumentado de 12 para 18
+            treeCtx.beginPath(); treeCtx.arc(x, y, 18, 0, Math.PI * 2); treeCtx.fill(); treeCtx.stroke();
+            
+            // AQUI: Fonte aumentada de 9px para 11px
+            treeCtx.fillStyle = "#333"; treeCtx.font = "bold 11px Arial"; treeCtx.textAlign = "center"; treeCtx.textBaseline = "middle"; treeCtx.fillText(`${node.point}`, x, y);
         }
 
         // --- LOG SYSTEM ---
@@ -453,7 +453,6 @@
             if (isNaN(x) || isNaN(y)) return log("Erro: Preencha X e Y.", 'error');
             log(`Removendo Ponto (${x},${y})...`, 'step-main');
             
-            // Simulação de passos lógicos para remoção
             log(`1. Varrendo árvore para encontrar o ponto...`, 'step');
             let pts = getAllPoints(root);
             const exists = pts.find(p => p[0] === x && p[1] === y);
@@ -467,7 +466,7 @@
             
             log(`3. Reconstruindo árvore balanceada com ${remaining.length} pontos...`, 'step');
             root = null; 
-            remaining.forEach(p => root = insert(root, p, 0, false)); // Reconstrói silenciosamente
+            remaining.forEach(p => root = insert(root, p, 0, false)); 
             
             updateAll(); 
             log(`Operação concluída: Ponto removido.`, 'success');
@@ -480,10 +479,7 @@
             log(`Busca Intervalo (Raio ${size}) em (${x},${y})`, 'step-main');
             const half = size/2;
             const range = { minX:x-half, maxX:x+half, minY:y-half, maxY:y+half };
-            
-            // Passa verbose=true implícito
             const res = rangeSearch(root, range, [], 0);
-            
             if(res.length) { log(`FIM: Encontrados ${res.length} pontos.`, 'highlight'); drawSpatial(res, range); }
             else { log(`FIM: Nenhum ponto na área.`, 'info'); drawSpatial([], range); }
         }
